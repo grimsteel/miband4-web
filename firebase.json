@@ -1,7 +1,7 @@
 {
   "hosting": {
     "target": "miband4",
-    "public": "build",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
