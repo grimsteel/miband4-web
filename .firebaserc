@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "note-pedia"
+  },
+  "targets": {
+    "note-pedia": {
+      "hosting": {
+        "miband4": [
+          "miband4"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
