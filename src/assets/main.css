@@ -8,6 +8,8 @@ html, body, #app {
 
 #app {
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .custom-scrollbar, #app {
