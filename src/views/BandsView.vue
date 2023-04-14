@@ -35,7 +35,8 @@
       </div>
     </div>
   </section>
-  <TheNotSupportedModal @before-close="closeModalNotSupported" :show="showNotSupportedModal" />
+  <TheNotSupportedModal @before-close="showNotSupportedModal = false" :show="showNotSupportedModal" />
+  <TheAddBandModal @before-close="showAddBandModal = false" :show="showAddBandModal" />
 </template>
 
 <script setup lang="ts">
@@ -45,21 +46,19 @@
   import IconAdd from "../components/icons/IconAdd.vue";
   import { useBandsStore } from "../idb-store";
   import { useRoute, useRouter } from "vue-router";
+  import TheAddBandModal from "../components/TheAddBandModal.vue";
+  import { webBluetoothSupported } from "../band-connection";
 
   const bandStore = useBandsStore();
-  const webBluetoothSupported = async () => "bluetooth" in navigator && await navigator.bluetooth.getAvailability();
+  
   const showNotSupportedModal = ref(false);
+  const showAddBandModal = ref(false);
   const route = useRoute();
   const router = useRouter();
 
-  function closeModalNotSupported() {
-    showNotSupportedModal.value = false;
-  }
-
   async function addNewBand() {
-    if (await webBluetoothSupported()) {
-      console.log("Web Bluetooth supported");
-    } else showNotSupportedModal.value = true;
+    if (await webBluetoothSupported()) showAddBandModal.value = true;
+    else showNotSupportedModal.value = true;
   }
   onMounted(() => {
     if (route.redirectedFrom?.name === "add-band") addNewBand().then(() => router.replace({ path: "/bands" }));
