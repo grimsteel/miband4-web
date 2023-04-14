@@ -1,5 +1,5 @@
-import { DBSchema, openDB } from "idb";
-import { PiniaPluginContext, Store, defineStore } from "pinia";
+import { type DBSchema, openDB } from "idb";
+import { type PiniaPluginContext, defineStore } from "pinia";
 
 export interface Band {
   id: number;

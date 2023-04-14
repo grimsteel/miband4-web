@@ -8,19 +8,10 @@
     <p class="text-gray-500 dark:text-gray-400">{{ description }}</p>
   </div>
 </template>
-<script setup>
-  defineProps({
-    icon: {
-      type: Object,
-      required: true
-    },
-    title: {
-      type: String,
-      required: true
-    },
-    description: {
-      type: String,
-      required: true
-    }
-  })
+<script setup lang="ts">
+  defineProps<{
+    icon: Object;
+    title: string;
+    description: string;
+  }>();
 </script>

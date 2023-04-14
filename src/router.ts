@@ -28,6 +28,19 @@ const router = createRouter({
       meta: {
         title: "My Bands"
       }
+    },
+    {
+      path: '/bands/add',
+      name: 'add-band',
+      redirect: () => ({ path: "/bands" })
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('./views/NotFoundView.vue'),
+      meta: {
+        title: "Not Found"
+      }
     }
   ]
 });

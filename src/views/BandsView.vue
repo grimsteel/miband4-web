@@ -1,11 +1,3 @@
-<script setup lang="ts">
-  import BandListBand from "../components/BandListBand.vue";
-  import IconAdd from "../components/icons/IconAdd.vue";
-  import { Band, useBandsStore } from "../idb-store";
-
-  const bandStore = useBandsStore();
-</script>
-
 <template>
   <section class="flex grow bg-gray-50 dark:bg-gray-900">
     <div class="w-full max-w-screen-xl px-4 mx-auto lg:px-12">
@@ -15,7 +7,7 @@
             <h5 class="mr-3 font-semibold dark:text-white">My Bands</h5>
             <p class="text-gray-500 dark:text-gray-400">Sorted in descending order of creation</p>
           </div>
-          <button type="button" class="flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-lg bg-gradient-to-br hover:bg-gradient-to-tr focus:ring-4 focus:ring-rose-300 focus:outline-none dark:focus:ring-rose-800 from-red-500 to-rose-600">
+          <button @click="addNewBand" type="button" class="flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-lg bg-gradient-to-br hover:bg-gradient-to-tr focus:ring-4 focus:ring-rose-300 focus:outline-none dark:focus:ring-rose-800 from-red-500 to-rose-600">
             <IconAdd class="h-3.5 w-3.5 mr-2 ml-1" />
             Add Band
           </button>
@@ -43,4 +35,33 @@
       </div>
     </div>
   </section>
+  <TheNotSupportedModal @before-close="closeModalNotSupported" :show="showNotSupportedModal" />
 </template>
+
+<script setup lang="ts">
+  import { onMounted, ref } from "vue";
+  import BandListBand from "../components/BandListBand.vue";
+  import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
+  import IconAdd from "../components/icons/IconAdd.vue";
+  import { useBandsStore } from "../idb-store";
+  import { useRoute, useRouter } from "vue-router";
+
+  const bandStore = useBandsStore();
+  const webBluetoothSupported = async () => "bluetooth" in navigator && await navigator.bluetooth.getAvailability();
+  const showNotSupportedModal = ref(false);
+  const route = useRoute();
+  const router = useRouter();
+
+  function closeModalNotSupported() {
+    showNotSupportedModal.value = false;
+  }
+
+  async function addNewBand() {
+    if (await webBluetoothSupported()) {
+      console.log("Web Bluetooth supported");
+    } else showNotSupportedModal.value = true;
+  }
+  onMounted(() => {
+    if (route.redirectedFrom?.name === "add-band") addNewBand().then(() => router.replace({ path: "/bands" }));
+  });
+</script>

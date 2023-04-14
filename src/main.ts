@@ -7,6 +7,7 @@ import { indexedDbPlugin } from './idb-store';
 
 const app = createApp(App);
 const pinia = createPinia();
+// @ts-ignore
 pinia.use(indexedDbPlugin);
 
 app.use(router)

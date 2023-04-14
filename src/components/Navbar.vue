@@ -31,12 +31,12 @@
   </nav>
 </template>
 
-<script setup>
+<script setup lang="ts">
   import { onMounted } from 'vue';
   import { initCollapses } from 'flowbite';
   import { RouterLink } from 'vue-router'
   import NavbarLink from './NavbarLink.vue';
-import IconGithub from './icons/IconGithub.vue';
+  import IconGithub from './icons/IconGithub.vue';
 
   onMounted(() => {
     initCollapses();

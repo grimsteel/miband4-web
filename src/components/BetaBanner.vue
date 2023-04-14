@@ -18,7 +18,7 @@
     </div>
   </div>
 </template>
-<script setup>
+<script setup lang="ts">
   import { Dismiss } from 'flowbite';
   import { onMounted } from 'vue';
   import IconStar from './icons/IconStar.vue';
@@ -27,7 +27,7 @@
   const emit = defineEmits(["close"]);
 
   onMounted(() => {
-    new Dismiss(document.getElementById("beta-banner"), document.querySelector('[data-dismiss-target="#beta-banner"]'), {
+    new Dismiss(document.getElementById("beta-banner"), document.querySelector<HTMLDivElement>('[data-dismiss-target="#beta-banner"]'), {
       onHide: () => emit("close")
     });
   });

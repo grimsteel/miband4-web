@@ -4,7 +4,7 @@
     {{ text }}
   </span>
 </template>
-<script setup>
+<script setup lang="ts">
   defineProps({
     classes: {
       type: String,
