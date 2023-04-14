@@ -7,11 +7,11 @@
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Add Band</h3>
           <button @click="$emit('before-close')" type="button"
             class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
-            <IconClose class="w-5 h-5" fill="currentColor" />
+            <IconClose class="w-5 h-5" />
             <span class="sr-only">Close modal</span>
           </button>
         </div>
-        <form id="create-form">
+        <form id="create-form" @submit="handleSubmit">
           <div class="space-y-4 mb-4">
             <div>
               <label for="nickname" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nickname</label>
@@ -24,14 +24,19 @@
               <input type="password" id="auth-key"
                 aria-describedby="auth-key-help"
                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-amber-600 focus:border-amber-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-amber-500 dark:focus:border-amber-500"
-                placeholder="32 hex characters" required v-model="authKey" />
+                placeholder="32 hex characters" required
+                v-model="authKey" minlength="32" maxlength="32" />
               <p id="auth-key-help" class="mt-2 text-sm text-gray-500 dark:text-gray-400">Find out how to get your band's auth key <a href="https://codeberg.org/Freeyourgadget/Gadgetbridge/wiki/Huami-Server-Pairing" target="_blank" class="font-medium text-blue-600 hover:underline dark:text-blue-500">here</a>.</p>
             </div>
             <div>
               <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Bluetooth Device</label>
               <button type="button" @click="showBluetoothDevicePicker" class="flex flex-col items-center justify-center w-full h-10 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
-                <p class="text-md text-gray-500 dark:text-gray-400">Click to select</p>
+                <p class="text-md text-gray-500 dark:text-gray-400">
+                  {{ bluetoothDevice ? `${bluetoothDevice?.name} selected` : "Click to select" }}
+                  <span v-if="bluetoothDevice" class="ml-1 hidden md:inline">({{ bluetoothDevice.id }})</span>
+                </p>
               </button>
+              <p v-if="!bluetoothDevice && hasBeenSubmitted" class="mt-2 text-sm text-red-600 dark:text-red-500">Please select a device.</p>
             </div>
           </div>
           <button type="submit"
@@ -50,12 +55,14 @@
   import IconClose from "./icons/IconClose.vue";
   import { onMounted, ref, watch } from "vue";
   import IconAdd from './icons/IconAdd.vue';
+  import { requestDevice } from "../band-connection";
 
   const props = defineProps<{ show: boolean }>();
   defineEmits(["before-close"]);
   const modal = ref<Modal>();
   const nickname = ref("");
   const authKey = ref("");
+  const hasBeenSubmitted = ref(false);
   const bluetoothDevice = ref<BluetoothDevice>();
 
   onMounted(() => {
@@ -65,12 +72,31 @@
   watch(
     () => props.show,
     (show) => {
-      if (show) modal.value?.show();
-      else modal.value?.hide();
+      if (show) {
+        modal.value?.show();
+        hasBeenSubmitted.value = false;
+      } else modal.value?.hide();
     }
   );
 
   async function showBluetoothDevicePicker() {
-    const device = await navigator.bluetooth.
+    const device = await requestDevice();
+    if (device) bluetoothDevice.value = device;
+    else bluetoothDevice.value = undefined;
+  }
+
+  function resetForm() {
+    hasBeenSubmitted.value = false;
+    bluetoothDevice.value = undefined;
+    nickname.value = "";
+    authKey.value = "";
+  }
+
+  function handleSubmit(e: Event) {
+    e.preventDefault();
+    hasBeenSubmitted.value = true;
+    if (bluetoothDevice.value) {
+
+    }
   }
 </script>

@@ -24,7 +24,7 @@
             </tr>
           </thead>
           <tbody v-if="bandStore.bands.length > 0">
-            <BandListBand v-for="band in bandStore.bands" :key="band.id" :nickname="band.nickname" :date-added="band.dateAdded" :mac-address="band.macAddress" />
+            <BandListBand v-for="band in bandStore.sortBandsByCreated('DESC')" :key="band.id" :nickname="band.nickname" :date-added="band.dateAdded" :mac-address="band.macAddress" />
           </tbody>
           <tbody v-else>
             <tr class="bg-gray-100 dark:bg-gray-800">

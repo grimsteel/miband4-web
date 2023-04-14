@@ -1,5 +1,6 @@
 import { type DBSchema, openDB } from "idb";
 import { type PiniaPluginContext, defineStore } from "pinia";
+import { readonly } from "vue";
 
 export interface Band {
   id: number;
@@ -38,6 +39,8 @@ async function getDb() {
   });
 }
 
+const bandDateMs = ({ dateAdded }: Band) => Number(dateAdded);
+
 export const useConfigStore = defineStore("config", {
   state: () => ({
     showBetaBanner: false  
@@ -50,12 +53,15 @@ export const useConfigStore = defineStore("config", {
 });
 
 export const useBandsStore = defineStore("bands", {
-  state: () => ({ 
+  state: () => (readonly({ 
     bands: []
-  } as { bands: Band[] }),
+  } as { bands: Band[] })),
   actions: {
-    getReversedBands(): Band[] {
-      return [...this.bands].reverse();
+    sortBandsByCreated(direction: "ASC" | "DESC" = "DESC") {
+      return this.bands.sort((a, b) => direction === "ASC" ? bandDateMs(a) - bandDateMs(b) : bandDateMs(b) - bandDateMs(a));
+    },
+    addBand(bandData: Pick<Band, "authKey" | "device" | "macAddress" | "nickname">) {
+      const band = {};
     }
   }
 });

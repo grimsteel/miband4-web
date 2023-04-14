@@ -13,6 +13,24 @@ const services = {
 
 export const webBluetoothSupported = async () => "bluetooth" in navigator && await navigator.bluetooth.getAvailability();
 
+export const authKeyStringToKey = async (keyString: string) => {
+  const hexParts = keyString.match(/.{1,2}/g);
+  if (!hexParts || hexParts.length !== 16) throw new Error("Invalid key format")
+  const byteArray = new Uint8Array(hexParts.map(el => parseInt(el, 16))); // convert to numbers
+  return await crypto.subtle.importKey("raw", byteArray, "AES-CBC", true, ["encrypt", "decrypt"]);
+}
+
 export const requestDevice = async () => {
-  await navigator.bluetooth.requestDevice({ filters: [{ services: [services.band1] }], optionalServices: Object.values(services) });
+  try {
+    return await navigator.bluetooth.requestDevice({ filters: [{ services: [services.band1] }], optionalServices: Object.values(services) });
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+export async function getBandMac(device: BluetoothDevice) {
+  const gatt = await device?.gatt?.connect();
+  if (!gatt) return;
+  (await gatt.getPrimaryService(services.deviceInfo)).getCharacteristics()
 }
