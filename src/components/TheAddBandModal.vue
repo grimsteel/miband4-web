@@ -1,5 +1,5 @@
 <template>
-  <div id="modal-add-band" tabindex="-1" aria-hidden="true"
+  <div ref="modalRoot" tabindex="-1" aria-hidden="true"
     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-modal md:h-full">
     <div class="relative p-4 w-full max-w-2xl h-full md:h-auto">
       <div class="relative p-4 bg-white rounded-lg shadow dark:bg-gray-800 sm:p-5">
@@ -24,19 +24,24 @@
               <input type="password" id="auth-key"
                 aria-describedby="auth-key-help"
                 class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-amber-600 focus:border-amber-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-amber-500 dark:focus:border-amber-500"
-                placeholder="32 hex characters" required
+                placeholder="32 hex characters" required autocomplete="off"
                 v-model="authKey" minlength="32" maxlength="32" />
-              <p id="auth-key-help" class="mt-2 text-sm text-gray-500 dark:text-gray-400">Find out how to get your band's auth key <a href="https://codeberg.org/Freeyourgadget/Gadgetbridge/wiki/Huami-Server-Pairing" target="_blank" class="font-medium text-blue-600 hover:underline dark:text-blue-500">here</a>.</p>
+              <p id="auth-key-help" class="mt-2 text-sm text-gray-500 dark:text-gray-400"><a href="https://codeberg.org/Freeyourgadget/Gadgetbridge/wiki/Huami-Server-Pairing" target="_blank" class="font-medium text-blue-600 hover:underline dark:text-blue-500">Find out how to get your band's auth key.</a></p>
             </div>
             <div>
               <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Bluetooth Device</label>
-              <button type="button" @click="showBluetoothDevicePicker" class="flex flex-col items-center justify-center w-full h-10 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
-                <p class="text-md text-gray-500 dark:text-gray-400">
-                  {{ bluetoothDevice ? `${bluetoothDevice?.name} selected` : "Click to select" }}
-                  <span v-if="bluetoothDevice" class="ml-1 hidden md:inline">({{ bluetoothDevice.id }})</span>
+              <button type="button" @click="showBluetoothDevicePicker" class="flex flex-col items-center justify-center w-full h-10 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600" :class="bandLoading ? 'cursor-wait' : 'cursor-pointer'">
+                <p v-if="bandLoading" class="animate-pulse w-full max-w-sm">
+                  <span class="sr-only">Loading...</span>
+                  <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-800 w-full"></div>
+                </p>
+                <p class="text-md text-gray-500 dark:text-gray-400" v-else>
+                  {{ selectedBand ? `${selectedBand.device.name} selected` : "Click to select" }}
+                  <span v-if="selectedBand" class="ml-1 hidden md:inline">({{ selectedBand.macAddress }})</span>
                 </p>
               </button>
-              <p v-if="!bluetoothDevice && hasBeenSubmitted" class="mt-2 text-sm text-red-600 dark:text-red-500">Please select a device.</p>
+              <p v-if="!selectedBand && hasBeenSubmitted" class="mt-2 text-sm text-red-600 dark:text-red-500">Please select a device.</p>
+              <p v-if="bandWithMacExists" class="mt-2 text-sm text-red-600 dark:text-red-500">A band with that mac address already exists.</p>
             </div>
           </div>
           <button type="submit"
@@ -55,18 +60,23 @@
   import IconClose from "./icons/IconClose.vue";
   import { onMounted, ref, watch } from "vue";
   import IconAdd from './icons/IconAdd.vue';
-  import { requestDevice } from "../band-connection";
+  import { getBandMac, requestDevice } from "../band-connection";
+  import { useBandsStore } from "../idb-store";
 
   const props = defineProps<{ show: boolean }>();
-  defineEmits(["before-close"]);
+  const emit = defineEmits(["before-close"]);
+  const modalRoot = ref<HTMLDivElement>();
   const modal = ref<Modal>();
   const nickname = ref("");
   const authKey = ref("");
   const hasBeenSubmitted = ref(false);
-  const bluetoothDevice = ref<BluetoothDevice>();
+  const selectedBand = ref<{ device: BluetoothDevice; macAddress: string; }>();
+  const bandLoading = ref(false);
+  const bandWithMacExists = ref(false);
+  const bandsStore = useBandsStore();
 
   onMounted(() => {
-    modal.value = new Modal(document.getElementById("modal-add-band"), {});
+    modal.value = new Modal(modalRoot.value, {});
   });
 
   watch(
@@ -80,23 +90,43 @@
   );
 
   async function showBluetoothDevicePicker() {
+    if (bandLoading.value) return;
+    bandLoading.value = true;
     const device = await requestDevice();
-    if (device) bluetoothDevice.value = device;
-    else bluetoothDevice.value = undefined;
+    if (device) {
+      const macAddress = await getBandMac(device);
+      if (!macAddress) selectedBand.value = undefined;
+      else {
+        bandWithMacExists.value = Boolean(await bandsStore.getBandForMac(macAddress));
+        selectedBand.value = { device, macAddress };
+      }
+    } else selectedBand.value = undefined;
+    bandLoading.value = false;
   }
 
   function resetForm() {
     hasBeenSubmitted.value = false;
-    bluetoothDevice.value = undefined;
+    selectedBand.value = undefined;
+    bandLoading.value = false;
+    bandWithMacExists.value = false;
     nickname.value = "";
     authKey.value = "";
   }
 
-  function handleSubmit(e: Event) {
+  async function handleSubmit(e: Event) {
     e.preventDefault();
+    if (bandLoading.value || bandWithMacExists.value) return;
     hasBeenSubmitted.value = true;
-    if (bluetoothDevice.value) {
-
+    if (selectedBand.value) {
+      await bandsStore.addBand({
+        nickname: nickname.value,
+        authKey: authKey.value,
+        macAddress: selectedBand.value.macAddress,
+        deviceId: selectedBand.value.device.id,
+      });
+      bandsStore.addAuthorizedDevice(selectedBand.value.device);
+      resetForm();
+      emit("before-close");
     }
   }
 </script>

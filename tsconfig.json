@@ -43,6 +43,7 @@
       //   - or the project has properly included the necessary polyfills.
       "ES2016",
       "ES2017.Object",
+      "ES2017.String",
       "DOM",
       "DOM.Iterable"
 

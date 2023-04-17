@@ -11,14 +11,14 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: '/about',
-      name: 'about',
+      path: '/faq',
+      name: 'faq',
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import('./views/AboutView.vue'),
+      component: () => import('./views/FAQView.vue'),
       meta: {
-        title: "About"
+        title: "Frequently Asked Questions"
       }
     },
     {
@@ -33,6 +33,11 @@ const router = createRouter({
       path: '/bands/add',
       name: 'add-band',
       redirect: () => ({ path: "/bands" })
+    },
+    {
+      path: '/bands/:id',
+      name: 'band-detail',
+      component: () => import('./views/BandDetailView.vue'),
     },
     {
       path: '/:pathMatch(.*)*',
