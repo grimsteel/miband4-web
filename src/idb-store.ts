@@ -13,7 +13,10 @@ export interface Band {
 interface MiBandDB extends DBSchema {
   config: {
     key: "showBetaBanner";
-    value: boolean
+    value: boolean;
+  } | {
+    key: "distanceUnit";
+    value: "km" | "miles";
   };
   bands: {
     key: number;
@@ -28,6 +31,7 @@ interface MiBandDB extends DBSchema {
 declare module "pinia" {
   export interface PiniaCustomProperties {
     showBetaBanner: boolean;
+    distanceUnit: "miles" | "km";
     bands: Band[];
   }
 }
@@ -48,7 +52,8 @@ const bandDateMs = ({ dateAdded }: Band) => Number(dateAdded);
 
 export const useConfigStore = defineStore("config", {
   state: () => ({
-    showBetaBanner: false  
+    showBetaBanner: false,
+    distanceUnit: "miles"
   }),
   actions: {
     stopShowingBetaBanner() {
@@ -138,8 +143,9 @@ export async function indexedDbPlugin({ store }: PiniaPluginContext) {
     const keys = await configStore.getAllKeys();
     const rawConfig = await Promise.all(keys.map(async key => ({ key, value: await configStore.get(key) })));
     await tx.done;
-    const config = rawConfig.reduce((acc, { key, value }) => ({ ...acc, [key.toString()]: value }), {}) as { showBetaBanner?: boolean };
+    const config = rawConfig.reduce((acc, { key, value }) => ({ ...acc, [key.toString()]: value }), {}) as { showBetaBanner?: boolean; distanceUnit?: "km" | "miles" };
     store.showBetaBanner = config.showBetaBanner ?? true;
+    store.distanceUnit = config.distanceUnit || "miles";
     store.$subscribe(async () => {
       const tx = db.transaction("config", "readwrite");
       const configStore = tx.objectStore("config");

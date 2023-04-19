@@ -231,9 +231,9 @@ export async function getDeviceInfo(device: BluetoothDeviceWrapper) {
   const productVersion = pnpIdBytes.getUint16(5, true);
 
   return {
-    mac,
+    macAddress: mac,
     hardwareRevision,
-    softwareRevision,
+    firmwareVersion: softwareRevision,
     vendorId,
     productId,
     productVersion
