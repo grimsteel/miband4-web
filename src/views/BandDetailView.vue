@@ -15,7 +15,7 @@
   import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
   import { useBandsStore, type Band } from "../idb-store";
   import { useRoute, useRouter } from "vue-router";
-  import { webBluetoothSupported } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getDeviceInfo, webBluetoothSupported } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
 
   const bandsStore = useBandsStore();
@@ -23,7 +23,7 @@
   const showNotSupportedModal = ref(false);
   const showReauthorizeModal = ref(false);
   const currentBand = ref<Band>();
-  const currentDevice = ref<BluetoothDevice>();
+  const currentDevice = ref<BluetoothDeviceWrapper>();
   const route = useRoute();
   const router = useRouter();
   const bandNotFound = () => {
@@ -34,7 +34,10 @@
   }
 
   async function showDetails() {
-
+    if (!currentBand.value || !currentDevice.value) return;
+    const authKey = await authKeyStringToKey(currentBand.value.authKey);
+    await authenticate(currentDevice.value!, authKey);
+    console.log(await getDeviceInfo(currentDevice.value));
   }
 
   async function onReauthorizeComplete(success: boolean, newDevice?: BluetoothDevice) {
@@ -44,7 +47,7 @@
       await bandsStore.removeAuthorizedDevice(currentBand.value.deviceId);
       bandsStore.addAuthorizedDevice(newDevice);
       await bandsStore.updateBandForId(currentBand.value.id, { deviceId: newDevice.id });
-      currentDevice.value = newDevice;
+      currentDevice.value = new BluetoothDeviceWrapper(newDevice);
       await showDetails();
     }
   }
@@ -65,10 +68,9 @@
     currentBand.value = band;
     const authorizedDevice = await bandsStore.getAuthorizedDeviceById(band.deviceId);
     if (authorizedDevice) {
-      currentDevice.value = authorizedDevice;
+      currentDevice.value = new BluetoothDeviceWrapper(authorizedDevice);
       await showDetails();
     } else {
-      currentBand.value = band;
       showReauthorizeModal.value = true;
     }
   });
