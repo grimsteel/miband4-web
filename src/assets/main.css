@@ -35,3 +35,8 @@ html, body, #app {
     --thumb: var(--default-track);
   }
 }
+
+.sr-only {
+  position: relative;
+  display: block;
+}

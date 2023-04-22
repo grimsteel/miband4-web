@@ -12,7 +12,7 @@
   import IconHiking from "../components/icons/IconHiking.vue";
   import IconPrivate from "../components/icons/IconPrivate.vue";
   import IconWarning from "../components/icons/IconWarning.vue";
-  import { useConfigStore } from "../idb-store";
+  import { useConfigStore } from "../pinia-stores";
 
   const configStore = useConfigStore();
 

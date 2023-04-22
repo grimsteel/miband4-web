@@ -44,16 +44,17 @@
   import { Modal } from "flowbite";
   import IconClose from "./icons/IconClose.vue";
   import { onMounted, ref, watch } from "vue";
-  import { useBandsStore } from "../idb-store";
   import IconCheck from "./icons/IconCheck.vue";
+  import type { Band } from "../types";
 
   const props = defineProps<{ show: boolean, band?: { nickname: string; authKey: string, id: number } }>();
-  const emit = defineEmits(["before-close"]);
+  const emit = defineEmits<{
+    (e: 'before-close', newBand?: Pick<Band, "nickname" | "authKey">): void
+  }>();
   const modalRoot = ref<HTMLDivElement>();
   const modal = ref<Modal>();
   const nickname = ref("");
   const authKey = ref("");
-  const bandsStore = useBandsStore();
 
   onMounted(() => {
     modal.value = new Modal(modalRoot.value, {});
@@ -85,11 +86,11 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!props.band) return;
-    await bandsStore.updateBandForId(props.band.id, {
+    const updatedBandProps = {
       nickname: nickname.value,
       authKey: authKey.value
-    });
+    };
     resetForm();
-    emit("before-close");
+    emit("before-close", updatedBandProps);
   }
 </script>

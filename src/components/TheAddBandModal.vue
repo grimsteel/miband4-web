@@ -5,7 +5,7 @@
       <div class="relative p-4 bg-white rounded-lg shadow dark:bg-gray-800 sm:p-5">
         <div class="flex justify-between items-center pb-4 mb-4 rounded-t border-b sm:mb-5 dark:border-gray-600">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Add Band</h3>
-          <button @click="$emit('before-close')" type="button"
+          <button @click="$emit('before-close')" type="button" data-test="close"
             class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
             <IconClose class="w-5 h-5" />
             <span class="sr-only">Close modal</span>
@@ -30,7 +30,7 @@
             </div>
             <div>
               <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Bluetooth Device</label>
-              <button type="button" @click="showBluetoothDevicePicker" class="flex flex-col items-center justify-center w-full h-10 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600" :class="bandLoading ? 'cursor-wait' : 'cursor-pointer'">
+              <button type="button" @click="showBluetoothDevicePicker" class="flex flex-col items-center justify-center w-full h-10 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600" :class="bandLoading ? 'cursor-wait' : 'cursor-pointer'" data-test="request-device">
                 <p v-if="bandLoading" class="animate-pulse w-full max-w-sm">
                   <span class="sr-only">Loading...</span>
                   <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-800 w-full"></div>
@@ -40,8 +40,8 @@
                   <span v-if="selectedBand" class="ml-1 hidden md:inline">({{ selectedBand.macAddress }})</span>
                 </p>
               </button>
-              <p v-if="!selectedBand && hasBeenSubmitted" class="mt-2 text-sm text-red-600 dark:text-red-500">Please select a device.</p>
-              <p v-if="bandWithMacExists" class="mt-2 text-sm text-red-600 dark:text-red-500">A band with that mac address already exists.</p>
+              <p v-if="!selectedBand && hasBeenSubmitted" class="mt-2 text-sm text-red-600 dark:text-red-500" data-test="error-not-selected">Please select a device.</p>
+              <p v-if="bandWithMacExists" class="mt-2 text-sm text-red-600 dark:text-red-500" data-test="error-exists">A band with that mac address already exists.</p>
             </div>
           </div>
           <button type="submit"
@@ -61,10 +61,13 @@
   import { onMounted, ref, watch } from "vue";
   import IconAdd from './icons/IconAdd.vue';
   import { getBandMac, requestDevice } from "../band-connection";
-  import { useBandsStore } from "../idb-store";
+  import { getBandForMac } from "../local-db";
+  import type { UnsavedBand } from "../types";
 
   const props = defineProps<{ show: boolean }>();
-  const emit = defineEmits(["before-close"]);
+  const emit = defineEmits<{
+    (e: 'before-close', newBand?: UnsavedBand, device?: BluetoothDevice): void
+  }>();
   const modalRoot = ref<HTMLDivElement>();
   const modal = ref<Modal>();
   const nickname = ref("");
@@ -73,7 +76,6 @@
   const selectedBand = ref<{ device: BluetoothDevice; macAddress: string; }>();
   const bandLoading = ref(false);
   const bandWithMacExists = ref(false);
-  const bandsStore = useBandsStore();
 
   onMounted(() => {
     modal.value = new Modal(modalRoot.value, {});
@@ -97,7 +99,7 @@
       const macAddress = await getBandMac(device);
       if (!macAddress) selectedBand.value = undefined;
       else {
-        bandWithMacExists.value = Boolean(await bandsStore.getBandForMac(macAddress));
+        bandWithMacExists.value = Boolean(await getBandForMac(macAddress));
         selectedBand.value = { device, macAddress };
       }
     } else selectedBand.value = undefined;
@@ -113,20 +115,20 @@
     authKey.value = "";
   }
 
-  async function handleSubmit(e: Event) {
+  function handleSubmit(e: Event) {
     e.preventDefault();
     if (bandLoading.value || bandWithMacExists.value) return;
     hasBeenSubmitted.value = true;
     if (selectedBand.value) {
-      await bandsStore.addBand({
+      const newBand = {
         nickname: nickname.value,
         authKey: authKey.value,
         macAddress: selectedBand.value.macAddress,
         deviceId: selectedBand.value.device.id,
-      });
-      bandsStore.addAuthorizedDevice(selectedBand.value.device);
+      };
+      const device = selectedBand.value.device;
       resetForm();
-      emit("before-close");
+      emit("before-close", newBand, device);
     }
   }
 </script>

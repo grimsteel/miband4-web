@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css" />
+  <title>Mocha Tests</title>
+</head>
+<body>
+  <div id="mocha"></div>
+  <script src="https://unpkg.com/chai/chai.js"></script>
+  <script src="https://unpkg.com/mocha/mocha.js"></script>
+  <script type="module">
+    import { deleteDB } from 'idb';
+    import { getDb, addBand, getBand, updateBandForId, removeBand, addActivityData, getActivityData } from "./src/local-db";
+    const bandData = { nickname: "test-band", macAddress: "test-mac", deviceId: "test-device", authKey: "test-key" };
+    const activityData = [
+      { timestamp: new Date(2023, 3, 17, 20), totalSteps: 91, averageHeartRate: 11 }, { timestamp: new Date(2023, 3, 17, 21), totalSteps: 97, averageHeartRate: 100 },
+      { timestamp: new Date(2023, 3, 17, 22), totalSteps: 65, averageHeartRate: 50 }, { timestamp: new Date(2023, 3, 17, 23), totalSteps: 71, averageHeartRate: 62 },
+      { timestamp: new Date(2023, 3, 18, 0), totalSteps: 51, averageHeartRate: 50 }, { timestamp: new Date(2023, 3, 18, 1), totalSteps: 72, averageHeartRate: 62 },
+      { timestamp: new Date(2023, 3, 18, 2), totalSteps: 120, averageHeartRate: 47 }, { timestamp: new Date(2023, 3, 18, 3), totalSteps: 1123, averageHeartRate: 77 },
+      { timestamp: new Date(2023, 3, 18, 4), totalSteps: 94, averageHeartRate: 41 }, { timestamp: new Date(2023, 3, 18, 5), totalSteps: 61, averageHeartRate: 129 },
+      { timestamp: new Date(2023, 3, 18, 6), totalSteps: 81, averageHeartRate: 66 }, { timestamp: new Date(2023, 3, 18, 7), totalSteps: 52, averageHeartRate: 67 },
+    ];
+    // The first two records overlap with activityData (but are in opposite order)
+    const additionalActivityData = [
+      { timestamp: new Date(2023, 3, 18, 7), totalSteps: 82, averageHeartRate: 61 }, { timestamp: new Date(2023, 3, 18, 6), totalSteps: 99, averageHeartRate: 104 },
+      { timestamp: new Date(2023, 3, 18, 9), totalSteps: 77, averageHeartRate: 65 }, { timestamp: new Date(2023, 3, 18, 8), totalSteps: 64, averageHeartRate: 63 }
+    ];
+    mocha.setup('bdd');
+    mocha.checkLeaks();
+    beforeEach(async () => {
+      await deleteDB("miband4-web-db");
+    });
+    describe('the local db interface', () => {
+      it('should be able to CRUD a single band', async () => {
+        const { id } = await addBand(bandData);
+        const band = await getBand(id);
+        chai.expect(band).to.deep.equal({
+          id,
+          ...bandData,
+          dateAdded: band.dateAdded,
+        });
+        await updateBandForId(id, { nickname: "updated-band" });
+        const updatedBand = await getBand(id);
+        chai.expect(updatedBand.nickname).to.equal("updated-band");
+        await removeBand(id);
+        const removedBand = await getBand(id);
+        chai.expect(removedBand).to.be.undefined;
+      });
+      it('should be able to insert activity data', async () => {
+        const { id } = await addBand(bandData);
+        await addActivityData(id, activityData);
+        const db = await getDb();
+        const tx = db.transaction("activityData", "readonly");
+        const idx = tx.objectStore("activityData").index("bandId-timestamp");
+        // Each item represents one day of activity data. It has an array of items - each one is one hour
+        let cursor = await idx.openCursor(IDBKeyRange.bound([id, new Date(2023, 3, 17)], [id, new Date(2023, 3, 18)]));
+        const results = [];
+        while (cursor) {
+          results.push(cursor.value);
+          cursor = await cursor.continue();
+        }
+        // The first day should have 4 items, the second day should have 8 items. Make sure they match those in activityData
+        chai.expect(results.find(({ timestamp }) => timestamp.getTime() === new Date(2023, 3, 17).getTime()).items).to.deep.equal(
+          activityData.slice(0, 4)
+        );
+        chai.expect(results.find(({ timestamp }) => timestamp.getTime() === new Date(2023, 3, 18).getTime()).items).to.deep.equal(
+          activityData.slice(4)
+        );
+        await tx.done;
+        db.close();
+      });
+      it('should be able to merge overlapping activity data', async () => {
+        const { id } = await addBand(bandData);
+        await addActivityData(id, activityData);
+        await addActivityData(id, additionalActivityData);
+
+        const db = await getDb();
+        const tx = db.transaction("activityData", "readonly");
+        const idx = tx.objectStore("activityData").index("bandId-timestamp");
+        // Each item represents one day of activity data. It has an array of items - each one is one hour
+        const cursor = await idx.openCursor(IDBKeyRange.only([id, new Date(2023, 3, 18)]));
+        const { items } = cursor.value;
+        chai.expect(items).to.deep.equal(
+          activityData.slice(4, 10).concat(additionalActivityData).sort((a, b) => a.timestamp - b.timestamp)
+        );
+        await tx.done;
+        db.close();
+      });
+      it('should be able to retrieve activity data for a given day', async () => {
+        const { id } = await addBand(bandData);
+        await addActivityData(id, activityData);
+        await addActivityData(id, [{ timestamp: new Date(2023, 3, 19, 0), totalSteps: 11, averageHeartRate: 6265 }, { timestamp: new Date(2023, 3, 19, 1), totalSteps: 61, averageHeartRate: 59 }]);
+        const data = await getActivityData(id, new Date(2023, 3, 17), new Date(2023, 3, 18));
+        chai.expect(data).to.deep.equal(activityData);
+      });
+      it('should delete activity data when the band is deleted', async () => {
+        const { id } = await addBand(bandData);
+        await addActivityData(id, activityData);
+        await removeBand(id);
+        const db = await getDb();
+        const tx = db.transaction("activityData", "readonly");
+        const count = await tx.objectStore("activityData").count();
+        chai.expect(count).to.equal(0);
+        await tx.done;
+        db.close();
+      });
+    });
+    after(async () => {
+      await deleteDB("miband4-web-db");
+    });
+    mocha.run()
+  </script>
+</body>
+</html>

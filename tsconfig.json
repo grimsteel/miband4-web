@@ -49,6 +49,6 @@
 
       // No `ScriptHost` because Vue 3 dropped support for IE
     ],
-    "types": ["vite/client", "@types/web-bluetooth"]
+    "types": ["vite/client", "@types/web-bluetooth", "vitest/globals"]
   }
 }

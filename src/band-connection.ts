@@ -1,16 +1,4 @@
-interface BluetoothUUID {
-  canonicalUUID(alias: string): string;
-  getCharacteristic(uuid: number | string): string;
-  getDescriptor(uuid: number | string): string;
-  getService(uuid: number | string): string;
-}
-
-declare global {
-  interface Window {
-    BluetoothUUID: BluetoothUUID;
-  }
-  const BluetoothUUID: BluetoothUUID;
-}
+import type { ActivityItem, StoredActivityItem } from "./types";
 
 /**
  * This class is used to store the services, characteristics and descriptors in a cache.
@@ -28,12 +16,24 @@ export class BluetoothDeviceWrapper {
     this.device = device;
   }
 
-  async getService(name: number | string) {
-    if (this.services[name]) return this.services[name];
-    if (!this.device.gatt?.connected) throw new Error("Device is not connected");
-    const service = await this.device.gatt.getPrimaryService(name);
+  async fetchService(name: number | string) {
+    const service = await this.device.gatt!.getPrimaryService(name);
     this.services[name] = service;
     return service;
+  }
+
+  async getService(name: number | string) {
+    if (this.services[name]) return this.services[name];
+    if (!this.device.gatt?.connected) await this.connectIfNeeded(true);
+    if (!this.device.gatt?.connected) throw new Error("Cannot connect to device");
+    try {
+      return await this.fetchService(name);
+    } catch (e) {
+      if ((e as Error).message?.includes("connect")) {
+        await this.connectIfNeeded(true);
+        return await this.fetchService(name);
+      } else throw e;
+    }
   }
 
   async getCharacteristic(serviceName: number | string, name: number | string) {
@@ -54,7 +54,15 @@ export class BluetoothDeviceWrapper {
 
   async connectIfNeeded(force=false) {
     if (!this.device.gatt) throw new Error("Cannot access gatt");
-    if (force || !this.device.gatt.connected) await this.device.gatt.connect();
+    if (force || !this.device.gatt.connected) {
+      try {
+        await this.device.gatt.connect()
+      } catch (e) {
+        if ((e as Error).message?.includes("in range") && "watchAdvertisements" in this.device) {
+          await connectAfterAdvertisment(this.device);
+        } else throw e;
+      }
+    }
   }
   
   disconnect() {
@@ -68,24 +76,28 @@ if (!("BluetoothUUID" in window)) (window as Window & typeof globalThis & { Blue
 };
 
 const services = {
-  band1: window.BluetoothUUID.getService(0xfee0),
-  band2: window.BluetoothUUID.getService(0xfee1),
-  alert: window.BluetoothUUID.getService(0x1811),
-  deviceInfo: window.BluetoothUUID.getService("device_information")
+  band1: BluetoothUUID.getService(0xfee0),
+  band2: BluetoothUUID.getService(0xfee1),
+  alert: BluetoothUUID.getService(0x1811),
+  deviceInfo: BluetoothUUID.getService("device_information")
 };
 
 const characteristics = {
-  systemId: window.BluetoothUUID.getCharacteristic("system_id"),
-  hardwareRevision: window.BluetoothUUID.getCharacteristic("hardware_revision_string"),
-  softwareRevision: window.BluetoothUUID.getCharacteristic("software_revision_string"),
-  pnpId: window.BluetoothUUID.getCharacteristic("pnp_id"),
+  systemId: BluetoothUUID.getCharacteristic("system_id"),
+  hardwareRevision: BluetoothUUID.getCharacteristic("hardware_revision_string"),
+  softwareRevision: BluetoothUUID.getCharacteristic("software_revision_string"),
+  pnpId: BluetoothUUID.getCharacteristic("pnp_id"),
   auth: "00000009-0000-3512-2118-0009af100700",
+  settings: "00000008-0000-3512-2118-0009af100700",
   steps: "00000007-0000-3512-2118-0009af100700",
   batteryLevel: "00000006-0000-3512-2118-0009af100700",
   activityData: "00000005-0000-3512-2118-0009af100700",
   fetch: "00000004-0000-3512-2118-0009af100700",
-  currentTime: window.BluetoothUUID.getCharacteristic("current_time"),
+  configuration: "00000003-0000-3512-2118-0009af100700",
+  currentTime: BluetoothUUID.getCharacteristic("current_time"),
 };
+
+const oneMinute = 60 * 1000;
 
 export const webBluetoothSupported = async () => "bluetooth" in navigator && await navigator.bluetooth.getAvailability();
 
@@ -114,7 +126,7 @@ async function connectAfterAdvertisment(bluetoothDevice: BluetoothDevice) {
     setTimeout(() => {
       abortController.abort();
       reject("Timeout");
-    }, 5000);
+    }, 10000);
   });
 }
 
@@ -168,6 +180,7 @@ export async function authenticate(device: BluetoothDeviceWrapper, authKey: Cryp
   //const encrypted = await crypto.subtle.encrypt({ name: "AES-CBC", iv: new Uint8Array(16) }, authKey, new Uint8Array(16));
   //await characteristic.writeValue(new Uint8Array(encrypted));
   return await new Promise(async (resolve, reject) => {
+    let resolved = false;
     const listener = async (event: Event) => {
       const valueDataView = (event.target as BluetoothRemoteGATTCharacteristic).value;
       if (!valueDataView) return;
@@ -180,21 +193,20 @@ export async function authenticate(device: BluetoothDeviceWrapper, authKey: Cryp
           const randomNumber = valueDataView.buffer.slice(3);
           const encrypted = await encryptWithKey(authKey, randomNumber);
           await authChar.writeValueWithoutResponse(concatUint8Arrays(new Uint8Array([0x03, 0x00]), encrypted));
-        } else if (byte1 === 0x03 && byte2 === 0x01) {
-          await stopNotifications();
+        } else if (!resolved && byte1 === 0x03 && byte2 === 0x01) {
+          await stopResolving();
           resolve("Authenticated");
-        } else if (byte1 === 0x03 && byte2 === 0x01) { 
-          await stopNotifications();
+        } else if (!resolved && byte1 === 0x03 && byte2 === 0x01) { 
+          await stopResolving();
           reject("Authentication failed");
-        } else {
-          await stopNotifications();
+        } else if (!resolved) {
+          await stopResolving();
           reject(`Unknown authentication response: ${byte1} ${byte2}`);
         }
       } 
     };
-    async function stopNotifications() {
-      authChar.removeEventListener("characteristicvaluechanged", listener);
-      await authChar.stopNotifications();
+    async function stopResolving() {
+      resolved = true;
     }
     await authChar.startNotifications()
     authChar.addEventListener("characteristicvaluechanged", listener);
@@ -248,6 +260,7 @@ export async function getBatteryLevel(device: BluetoothDeviceWrapper) {
   const lastOff = new Date(batteryLevelBytes.getUint16(3, true), batteryLevelBytes.getUint8(5) - 1, batteryLevelBytes.getUint8(6), batteryLevelBytes.getUint8(7), batteryLevelBytes.getUint8(8), batteryLevelBytes.getUint8(9));
   const lastCharge = new Date(batteryLevelBytes.getUint16(11, true), batteryLevelBytes.getUint8(13) - 1, batteryLevelBytes.getUint8(14), batteryLevelBytes.getUint8(15), batteryLevelBytes.getUint8(16), batteryLevelBytes.getUint8(17));
   const lastLevel = batteryLevelBytes.getUint8(19);
+  // TODO: Find out what the current status is (charging, full, etc)
   return {
     batteryLevel,
     lastOff,
@@ -271,7 +284,34 @@ export async function getSteps(device: BluetoothDeviceWrapper) {
   };
 }
 
-export async function getActivityData(device: BluetoothDeviceWrapper, startDate: Date, endDate: Date) {
+function parseActivityData(activityData: ActivityItem[]): StoredActivityItem[] {
+  // Group the data by hour
+  const groupedByHour = activityData.reduce((acc, item) => {
+    const hour = new Date(item.timestamp.getFullYear(), item.timestamp.getMonth(), item.timestamp.getDate(), item.timestamp.getHours()).getTime();
+    if (!acc[hour]) acc[hour] = [];
+    acc[hour].push(item);
+    return acc;
+  }, {} as { [hour: string]: ActivityItem[] });
+
+  const parsedData = Object.entries(groupedByHour).map(([key, items]) => {
+    const totalSteps = items.reduce((acc, item) => acc + item.steps, 0);
+    const averageHeartRate = items.reduce((acc, item) => acc + item.heartRate, 0) / items.length;
+    return {
+      totalSteps,
+      averageHeartRate,
+      timestamp: new Date(parseInt(key))
+    };
+  });
+
+  return parsedData;
+}
+
+export async function getActivityData(
+  device: BluetoothDeviceWrapper,
+  startDate: Date,
+  endDate: Date,
+  listeners?: Partial<{ onDataReceived: (timestamp: Date) => void, onBatchFinished: (items: StoredActivityItem[]) => void }>
+) {
   await device.connectIfNeeded();
   const currentTimeChar = await device.getCharacteristic(services.band1, characteristics.currentTime);
   const currentTimeBytes = await currentTimeChar.readValue();
@@ -279,27 +319,134 @@ export async function getActivityData(device: BluetoothDeviceWrapper, startDate:
   const fetchChar = await device.getCharacteristic(services.band1, characteristics.fetch);
   const activityDataChar = await device.getCharacteristic(services.band1, characteristics.activityData);
 
-  const requestMore = async (fromTime: Date) => {
-    const payload = new Uint8Array([0x01, 0x01, 
-      startDate.getFullYear(), startDate.getFullYear() >> 8, startDate.getMonth() + 1, startDate.getDate(), startDate.getHours(), startDate.getMinutes(),
-      currentTimeBytes.getUint8(9), // bytes 9 to 10 is the timezone offset
-      currentTimeBytes.getUint8(10),
-    ]);
+  return await new Promise<void>(async resolve => {
+    let firstTimestamp: Date, lastTimestamp: Date, pkg = 0;
+    let activityData: ActivityItem[] = [];
 
-    await fetchChar.writeValueWithoutResponse(payload);
-  }
+    const flushActivityData = () => {
+      if (activityData.length === 0) return;
+      const dataToFlush = activityData;
+      activityData = [];
+      const parsedData = parseActivityData(dataToFlush);
+      listeners?.onBatchFinished?.(parsedData);
+    }
+    
+    const requestMore = async (fromTime: Date) => {
+      const payload = new Uint8Array([0x01, 0x01, 
+        fromTime.getFullYear(), fromTime.getFullYear() >> 8, fromTime.getMonth() + 1, fromTime.getDate(), fromTime.getHours(), fromTime.getMinutes(),
+        currentTimeBytes.getUint8(9), // bytes 9 to 10 is the timezone offset
+        currentTimeBytes.getUint8(10),
+      ]);
 
-  const fetchNotificationListener = async (event: Event) => {
-  }
+      await fetchChar.writeValueWithoutResponse(payload);
+    }
 
-  const activityDataNotificationListener = async (event: Event) => {
-  }
+    const closeAndResolve = async () => {
+      flushActivityData();
+      activityDataChar.removeEventListener("characteristicvaluechanged", activityDataNotificationListener);
+      fetchChar.removeEventListener("characteristicvaluechanged", fetchNotificationListener);
+      await activityDataChar.stopNotifications();
+      await fetchChar.stopNotifications();
+      resolve();
+    }
 
-  await fetchChar.startNotifications();
-  await activityDataChar.startNotifications();
+    const fetchNotificationListener = async (event: Event) => {
+      const valueDataView = (event.target as BluetoothRemoteGATTCharacteristic).value;
+      if (!valueDataView) return;
+      const [b1, b2, b3] = [valueDataView.getUint8(0), valueDataView.getUint8(1), valueDataView.getUint8(2)];
+      if (b1 === 0x10 && b2 === 0x01 && b3 === 0x01) {
+        // Recevied an activity packet start date
+        firstTimestamp = new Date(valueDataView.getUint16(7, true), valueDataView.getUint8(9) - 1, valueDataView.getUint8(10), valueDataView.getUint8(11), valueDataView.getUint8(12));
+        console.debug(`Fetching data from ${firstTimestamp.toLocaleString()}`);
+        pkg = 0;
+        await fetchChar.writeValueWithoutResponse(new Uint8Array([0x02]));
+      } else if (b1 === 0x10 && b2 === 0x02 && b3 === 0x01) {
+        if (lastTimestamp.getTime() > endDate.getTime() - oneMinute) return await closeAndResolve();
+        console.debug(`Fetching more data`);
+        setTimeout(() => requestMore(new Date(lastTimestamp.getTime() + oneMinute)), 1000); // Wait 1 second before requesting more data
+      } else if (b1 === 0x10 && b2 === 0x02 && b3 === 0x04) await closeAndResolve();
+      else console.log(b1,b2,b3)
+    }
 
-  fetchChar.addEventListener("characteristicvaluechanged", fetchNotificationListener);
-  activityDataChar.addEventListener("characteristicvaluechanged", activityDataNotificationListener);
+    const activityDataNotificationListener = async (event: Event) => {
+      const valueDataView = (event.target as BluetoothRemoteGATTCharacteristic).value;
+      if (!valueDataView) return;
+      if (valueDataView.byteLength % 4 === 1) {
+        pkg++;
+        // start at 1 to skip the first byte
+        for (let i = 1; i < valueDataView.byteLength; i += 4) {
+          const minutesOffset = pkg * 4 + (i - 1) / 4;
+          lastTimestamp = new Date(firstTimestamp.getTime() + minutesOffset * oneMinute);
+          if (lastTimestamp < endDate) {
+            const activityItem = {
+              category: valueDataView.getUint8(i),
+              intensity: valueDataView.getUint8(i + 1),
+              steps: valueDataView.getUint8(i + 2),
+              heartRate: valueDataView.getUint8(i + 3),
+              timestamp: lastTimestamp
+            };
+            activityData.push(activityItem);
+            listeners?.onDataReceived?.(lastTimestamp);
+            if (activityData.length >= 1000) flushActivityData();
+          }
+        }
+      }
+    }
 
-  await requestMore(startDate);
+    await fetchChar.startNotifications();
+    await activityDataChar.startNotifications();
+
+    fetchChar.addEventListener("characteristicvaluechanged", fetchNotificationListener);
+    activityDataChar.addEventListener("characteristicvaluechanged", activityDataNotificationListener);
+
+    await requestMore(startDate);
+  });
+}
+
+export async function setGoalNotifications(device: BluetoothDeviceWrapper, goalNotifications: boolean) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const payload = new Uint8Array([0x06, 0x06, 0x00, goalNotifications ? 0x01 : 0x00]);
+  await charConfig.writeValueWithoutResponse(payload);
+}
+
+export async function setActivityGoal(device: BluetoothDeviceWrapper, steps: number) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.settings);
+  const payload = new Uint8Array([0x10, 0x00, 0x00, steps, steps >> 8, 0x00, 0x00]);
+  await charConfig.writeValueWithResponse(payload); // This one needs a response. Not sure why.
+}
+
+export async function getCurrentTime(device: BluetoothDeviceWrapper) {
+  await device.connectIfNeeded();
+  const currentTimeChar = await device.getCharacteristic(services.band1, characteristics.currentTime);
+  const currentTimeBytes = await currentTimeChar.readValue();
+
+  const currentTime = new Date(
+    currentTimeBytes.getUint16(0, true), // year
+    currentTimeBytes.getUint8(2) - 1, // month
+    currentTimeBytes.getUint8(3), // day
+    currentTimeBytes.getUint8(4), // hour
+    currentTimeBytes.getUint8(5), // minute
+    currentTimeBytes.getUint8(6), // second
+  );
+  return currentTime;
+}
+
+export async function setCurrentTime(device: BluetoothDeviceWrapper, time: Date) {
+  const payload = new Uint8Array([
+    time.getFullYear(), time.getFullYear() >> 8,
+    time.getMonth() + 1,
+    time.getDate(),
+    time.getHours(),
+    time.getMinutes(),
+    time.getSeconds(),
+    time.getDay(),
+    0x00,
+    0x00,
+    0x00
+  ]);
+  await device.connectIfNeeded();
+  const currentTimeChar = await device.getCharacteristic(services.band1, characteristics.currentTime);
+  await currentTimeChar.writeValueWithResponse(payload);
 }

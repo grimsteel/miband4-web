@@ -3,7 +3,7 @@ import App from './App.vue'
 import router from './router'
 import './assets/main.css'
 import { createPinia } from 'pinia';
-import { indexedDbPlugin } from './idb-store';
+import { indexedDbPlugin } from './pinia-stores';
 
 const app = createApp(App);
 const pinia = createPinia();

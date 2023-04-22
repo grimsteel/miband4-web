@@ -39,9 +39,9 @@
       </div>
     </section>
     <TheNotSupportedModal @before-close="showNotSupportedModal = false" :show="showNotSupportedModal" />
-    <TheAddBandModal @before-close="showAddBandModal = false" :show="showAddBandModal" />
-    <EditBandModal @before-close="{ showEditModal = false; currentBand = undefined }" :show="showEditModal" :band="currentBand" />
-    <DeleteBandModal @before-close="{ showDeleteModal = false; currentBand = undefined }" :show="showDeleteModal" :band="currentBand" />
+    <TheAddBandModal @before-close="onAddBandModalClose" :show="showAddBandModal" />
+    <EditBandModal @before-close="onEditBandModalClose" :show="showEditModal" :band="currentBand" />
+    <DeleteBandModal @before-close="onDeleteModalClose" :show="showDeleteModal" :band="currentBand" />
   </main>
 </template>
 
@@ -50,12 +50,13 @@
   import BandListBand from "../components/BandListBand.vue";
   import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
   import IconAdd from "../components/icons/IconAdd.vue";
-  import { useBandsStore, type Band } from "../idb-store";
+  import { useBandsStore } from "../pinia-stores";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
   import TheAddBandModal from "../components/TheAddBandModal.vue";
   import { webBluetoothSupported } from "../band-connection";
   import DeleteBandModal from "../components/DeleteBandModal.vue";
   import EditBandModal from "../components/EditBandModal.vue";
+  import type { Band, UnsavedBand } from "../types";
 
   const bandsStore = useBandsStore();
   
@@ -83,4 +84,28 @@
     showAddBandModal.value = false;
     showDeleteModal.value = false;
   });
+
+  async function onAddBandModalClose(band?: UnsavedBand, device?: BluetoothDevice) {
+    if (band && device) {
+      await bandsStore.addBand(band);
+      bandsStore.addAuthorizedDevice(device);
+    }
+    showAddBandModal.value = false;
+  }
+
+  async function onEditBandModalClose(newBand?: Pick<Band, "nickname" | "authKey">) {
+    if (currentBand.value && newBand)
+      await bandsStore.updateBandForId(currentBand.value.id, newBand);
+    showEditModal.value = false;
+    currentBand.value = undefined;
+  }
+
+  async function onDeleteModalClose(shouldDelete: boolean) {
+    if (shouldDelete && currentBand.value) {
+      await bandsStore.removeBand(currentBand.value.id);
+      bandsStore.removeAuthorizedDevice(currentBand.value.deviceId);
+    }
+    showDeleteModal.value = false;
+    currentBand.value = undefined;
+  }
 </script>

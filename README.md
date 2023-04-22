@@ -10,6 +10,37 @@ Before you begin using it, you'll need your Mi Band 4's:
 
 This project is based off of [Satkar Dhakal's miband4](https://github.com/satcar77/miband4) which is licensed under the MIT license. It would not have been possible without the work there.
 
+## Features:
+
+✅: Complete
+
+🕑: In Progress
+
+❌: Not Started (but planned)
+
+| Feature | Status | Notes |
+| - | - | - |
+| Device Info | ✅ | A bunch of random info that you'll never need |
+| Status | ✅ | Steps, calories, distance |
+| Battery | ✅ | Battery level, last charged, etc. |
+| Heart Rate | ❌ | Low priority (accessible using the band) |
+| Activity Data | 🕑 | Steps and heart rate history. Kind of buggy. |
+| Alarms | ❌ | Write-only |
+| Notifications | ❌ | This has no practical purpose |
+| Music | ❌ | No practical purpose<sup>1</sup> |
+| Goal Configuration | ✅ | Write-only |
+| Band Time | ✅ | Read and write |
+| Weather | ❌ | Set manually or from the internet |
+| Band Display | ❌ | Write-only |
+| Find My Band | ❌ | Makes the band vibrate |
+| General Configuration<sup>2</sup> | ❌ | Write-only |
+
+<sup>1</sup> Websites can't access what music you're playing, so you can only set what the band's music screen displays manually and see when the buttons are tapped.
+
+<sup>2</sup> This includes idle alerts, band location, lift wrist to wake, night mode, and band lock.
+
+<!-- TODO: Band language and distance unit  -->
+
 ## Reauthorization of Bluetooth Devices
 
 ### API Structure:

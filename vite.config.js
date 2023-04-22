@@ -37,5 +37,9 @@ export default defineConfig({
   },
   server: {
     hmr: false
+  },
+  test: {
+    globals: true,
+    environment: "happy-dom"
   }
 })

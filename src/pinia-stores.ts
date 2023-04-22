@@ -1,59 +1,20 @@
-import { type DBSchema, openDB } from "idb";
+import { addBand, updateBandForId, removeBand, getDb } from "./local-db";
 import { type PiniaPluginContext, defineStore } from "pinia";
-
-export interface Band {
-  id: number;
-  nickname: string;
-  macAddress: string;
-  authKey: string;
-  dateAdded: Date;
-  deviceId: string;
-};
-
-interface MiBandDB extends DBSchema {
-  config: {
-    key: "showBetaBanner";
-    value: boolean;
-  } | {
-    key: "distanceUnit";
-    value: "km" | "miles";
-  };
-  bands: {
-    key: number;
-    value: Band;
-    indexes: {
-      macAddress: string;
-      deviceId: string;
-    };
-  };
-}
+import type { Band, MiBandDB, UnsavedBand, Config } from "./types";
 
 declare module "pinia" {
-  export interface PiniaCustomProperties {
-    showBetaBanner: boolean;
-    distanceUnit: "miles" | "km";
+  export interface PiniaCustomProperties extends Config {
     bands: Band[];
   }
 }
 
-async function getDb() {
-  return await openDB<MiBandDB>("miband4-web-db", 2, {
-    upgrade(db, oldVersion) {
-      if (oldVersion < 1) // if we're upgrading from a version below 1
-        db.createObjectStore("config");
-      const bandStore = db.createObjectStore("bands", { autoIncrement: true, keyPath: "id" });
-      bandStore.createIndex("macAddress", "macAddress");
-      bandStore.createIndex("deviceId", "deviceId");
-    }
-  });
-}
-
 const bandDateMs = ({ dateAdded }: Band) => Number(dateAdded);
+const defaultDistanceUnit = "miles";
 
 export const useConfigStore = defineStore("config", {
   state: () => ({
     showBetaBanner: false,
-    distanceUnit: "miles"
+    distanceUnit: defaultDistanceUnit
   }),
   actions: {
     stopShowingBetaBanner() {
@@ -73,43 +34,16 @@ export const useBandsStore = defineStore("bands", {
     sortBandsByCreated(direction: "ASC" | "DESC" = "DESC") {
       return [...this.bands].sort((a, b) => direction === "ASC" ? bandDateMs(a) - bandDateMs(b) : bandDateMs(b) - bandDateMs(a));
     },
-    async addBand(bandData: Pick<Band, "authKey" | "macAddress" | "nickname" | "deviceId">) {
-      const band = {
-        ...bandData,
-        dateAdded: new Date()
-      };
-      const db = await getDb();
-      const bandId = await db.put("bands", band as Band);
-      this.bands = [...this.bands, {
-        ...band,
-        id: bandId
-      }];
-    },
-    async getBand(id: number) {
-      const db = await getDb();
-      return await db.get("bands", id);
-    },
-    async getBandForDeviceId(deviceId: string) {
-      const db = await getDb();
-      return await db.getFromIndex("bands", "deviceId", deviceId);
-    },
-    async getBandForMac(macAddress: string) {
-      const db = await getDb();
-      return await db.getFromIndex("bands", "macAddress", macAddress);
+    async addBand(bandData: UnsavedBand) {
+      const newBand = await addBand(bandData);
+      this.bands = [...this.bands, newBand];
     },
     async updateBandForId(id: number, bandData: Partial<Band>) {
-      const db = await getDb();
-      const existingBand = await db.get("bands", id);
-      if (!existingBand) return;
-      await db.put("bands", {
-        ...existingBand,
-        ...bandData,
-      });
+      await updateBandForId(id, bandData);
       this.bands = this.bands.map(b => b.id === id ? { ...b, ...bandData } : b);
     },
     async removeBand(id: number) {
-      const db = await getDb();
-      await db.delete("bands", id);
+      await removeBand(id);
       this.bands = this.bands.filter(b => b.id !== id);
     },
     addAuthorizedDevice(device: BluetoothDevice) {
@@ -143,9 +77,9 @@ export async function indexedDbPlugin({ store }: PiniaPluginContext) {
     const keys = await configStore.getAllKeys();
     const rawConfig = await Promise.all(keys.map(async key => ({ key, value: await configStore.get(key) })));
     await tx.done;
-    const config = rawConfig.reduce((acc, { key, value }) => ({ ...acc, [key.toString()]: value }), {}) as { showBetaBanner?: boolean; distanceUnit?: "km" | "miles" };
+    const config = rawConfig.reduce((acc, { key, value }) => ({ ...acc, [key.toString()]: value }), {}) as Partial<Config>;
     store.showBetaBanner = config.showBetaBanner ?? true;
-    store.distanceUnit = config.distanceUnit || "miles";
+    store.distanceUnit = config.distanceUnit || defaultDistanceUnit;
     store.$subscribe(async () => {
       const tx = db.transaction("config", "readwrite");
       const configStore = tx.objectStore("config");
