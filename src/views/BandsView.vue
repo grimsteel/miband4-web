@@ -27,7 +27,7 @@
             <tbody v-if="bandsStore.bands.length > 0">
               <BandListBand v-for="band in bandsStore.sortBandsByCreated('DESC')" :key="band.id"
                 :nickname="band.nickname" :date-added="band.dateAdded" :mac-address="band.macAddress"
-                @open="showBandDetail(band)" @edit="{ currentBand = band; showEditModal = true }" @delete="{ currentBand = band; showDeleteModal = true }" />
+                @open="showBandDetail(band)" @edit="{ currentBand = band; currentModal = 'edit' }" @delete="{ currentBand = band; currentModal = 'delete' }" />
             </tbody>
             <tbody v-else>
               <tr class="bg-gray-100 dark:bg-gray-800">
@@ -38,65 +38,69 @@
         </div>
       </div>
     </section>
-    <TheNotSupportedModal @before-close="showNotSupportedModal = false" :show="showNotSupportedModal" />
-    <TheAddBandModal @before-close="onAddBandModalClose" :show="showAddBandModal" />
-    <EditBandModal @before-close="onEditBandModalClose" :show="showEditModal" :band="currentBand" />
-    <DeleteBandModal @before-close="onDeleteModalClose" :show="showDeleteModal" :band="currentBand" />
+    <TheNotSupportedModal @before-close="currentModal = null" v-if="currentModal === 'not-supported'" />
+    <TheAddBandModal @before-close="onAddBandModalClose" v-if="currentModal === 'add'" />
+    <EditBandModal @before-close="onEditBandModalClose" v-if="currentModal === 'edit'" :band="currentBand" />
+    <DeleteBandModal @before-close="onDeleteModalClose" v-if="currentModal === 'delete'" :band="currentBand" />
+    <div class="bg-gray-900 bg-opacity-50 dark:bg-opacity-80 fixed inset-0 z-40" v-if="currentModal"></div>
   </main>
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref } from "vue";
+  import { defineAsyncComponent, onMounted, ref, watch } from "vue";
+  import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
   import BandListBand from "../components/BandListBand.vue";
-  import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
   import IconAdd from "../components/icons/IconAdd.vue";
   import { useBandsStore } from "../pinia-stores";
-  import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import TheAddBandModal from "../components/TheAddBandModal.vue";
-  import DeleteBandModal from "../components/DeleteBandModal.vue";
-  import EditBandModal from "../components/EditBandModal.vue";
   import type { Band, UnsavedBand } from "../types";
 
   const bandsStore = useBandsStore();
   
-  const showNotSupportedModal = ref(false);
-  const showAddBandModal = ref(false);
-  const showEditModal = ref(false);
-  const showDeleteModal = ref(false);
+  const currentModal = ref<"not-supported" | "add" | "edit" | "delete" | null>(null);
   const currentBand = ref<Band>();
   const route = useRoute();
   const router = useRouter();
 
-  async function addNewBand() {
-    const { webBluetoothSupported } = await import("../band-connection");
-    if (await webBluetoothSupported()) showAddBandModal.value = true;
-    else showNotSupportedModal.value = true;
-  }
+  const DeleteBandModal = defineAsyncComponent(() => import("../components/DeleteBandModal.vue"));
+  const EditBandModal = defineAsyncComponent(() => import("../components/EditBandModal.vue"));
+  const TheAddBandModal = defineAsyncComponent(() => import("../components/TheAddBandModal.vue"));
+  const TheNotSupportedModal = defineAsyncComponent(() => import("../components/TheNotSupportedModal.vue"));
+
   onMounted(() => {
     if (route.redirectedFrom?.name === "add-band") addNewBand().then(() => router.replace({ path: "/bands" }));
   });
+
+  onBeforeRouteLeave(() => {
+    currentModal.value = null;
+  });
+
+  watch(currentModal, (value) => {
+    if (value) document.body.classList.add("overflow-hidden");
+    else document.body.classList.remove("overflow-hidden");
+  });
+
+  async function addNewBand() {
+    const { webBluetoothSupported } = await import("../band-connection");
+    if (await webBluetoothSupported()) currentModal.value = "add";
+    else currentModal.value = "not-supported";
+  }
+
   async function showBandDetail(band: Band) {
     router.push({ name: "band-detail", params: { id: band.id } });
   }
-
-  onBeforeRouteLeave(() => {
-    showNotSupportedModal.value = false;
-    showAddBandModal.value = false;
-    showDeleteModal.value = false;
-  });
 
   async function onAddBandModalClose(band?: UnsavedBand, device?: BluetoothDevice) {
     if (band && device) {
       await bandsStore.addBand(band);
       bandsStore.addAuthorizedDevice(device);
     }
-    showAddBandModal.value = false;
+    currentModal.value = null;
   }
 
   async function onEditBandModalClose(newBand?: Pick<Band, "nickname" | "authKey">) {
     if (currentBand.value && newBand)
       await bandsStore.updateBandForId(currentBand.value.id, newBand);
-    showEditModal.value = false;
+    currentModal.value = null;
     currentBand.value = undefined;
   }
 
@@ -105,7 +109,7 @@
       await bandsStore.removeBand(currentBand.value.id);
       bandsStore.removeAuthorizedDevice(currentBand.value.deviceId);
     }
-    showDeleteModal.value = false;
+    currentModal.value = null;
     currentBand.value = undefined;
   }
 </script>

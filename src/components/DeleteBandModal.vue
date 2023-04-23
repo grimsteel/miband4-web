@@ -1,7 +1,7 @@
 
 <template>
-  <div ref="modalRoot" tabindex="-1" aria-hidden="true"
-    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-modal md:h-full">
+  <div tabindex="-1" aria-modal="true" role="dialog"
+    class="flex overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-modal md:h-full">
     <div class="relative p-4 w-full max-w-md h-full md:h-auto">
       <div class="relative p-4 text-center bg-white rounded-lg shadow dark:bg-gray-800 sm:p-5">
         <button type="button" @click="$emit('before-close', false)"
@@ -32,30 +32,12 @@
 </template>
 
 <script setup lang="ts">
-  import { Modal } from 'flowbite';
   import IconClose from './icons/IconClose.vue';
-  import { onMounted, ref, watch } from 'vue';
 
   defineEmits<{
     (e: 'before-close', shouldDelete: boolean): void;
   }>();
   const props = defineProps<{
-    show: boolean;
     band?: { nickname: string; id: number; deviceId: string; }
   }>();
-
-  const modalRoot = ref<HTMLElement>();
-  const modal = ref<Modal>();
-
-  onMounted(() => {
-    modal.value = new Modal(modalRoot.value, {});
-  });
-
-  watch(
-    () => props.show,
-    (show) => {
-      if (show) modal.value?.show();
-      else modal.value?.hide();
-    }
-  );
 </script>

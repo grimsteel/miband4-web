@@ -1,6 +1,5 @@
 <template>
-  <div ref="modalRoot" tabindex="-1" aria-hidden="true"
-    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-modal md:h-full">
+  <div tabindex="-1" role="dialog" aria-modal="true" class="fixed top-0 left-0 right-0 z-50 w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full justify-center items-center flex">
     <div class="relative p-4 w-full max-w-2xl h-full md:h-auto">
       <div class="relative p-4 bg-white rounded-lg shadow dark:bg-gray-800 sm:p-5">
         <div class="flex justify-between items-center pb-4 mb-4 rounded-t border-b sm:mb-5 dark:border-gray-600">
@@ -41,32 +40,17 @@
 </template>
 
 <script setup lang="ts">
-  import { Modal } from "flowbite";
   import IconClose from "./icons/IconClose.vue";
-  import { onMounted, ref, watch } from "vue";
+  import { ref, watch } from "vue";
   import IconCheck from "./icons/IconCheck.vue";
   import type { Band } from "../types";
 
-  const props = defineProps<{ show: boolean, band?: { nickname: string; authKey: string, id: number } }>();
+  const props = defineProps<{ band?: { nickname: string; authKey: string, id: number } }>();
   const emit = defineEmits<{
     (e: 'before-close', newBand?: Pick<Band, "nickname" | "authKey">): void
   }>();
-  const modalRoot = ref<HTMLDivElement>();
-  const modal = ref<Modal>();
-  const nickname = ref("");
-  const authKey = ref("");
-
-  onMounted(() => {
-    modal.value = new Modal(modalRoot.value, {});
-  });
-
-  watch(
-    () => props.show,
-    (show) => {
-      if (show) modal.value?.show();
-      else modal.value?.hide();
-    }
-  );
+  const nickname = ref(props.band?.nickname || "");
+  const authKey = ref(props.band?.authKey || "");
 
   watch(
     () => props.band,

@@ -1,6 +1,5 @@
 <template>
-  <div ref="modalRoot" tabindex="-1" aria-hidden="true"
-    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-modal md:h-full">
+  <div tabindex="-1" role="dialog" aria-modal="true" class="fixed top-0 left-0 right-0 z-50 w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full justify-center items-center flex">
     <div class="relative p-4 w-full max-w-2xl h-full md:h-auto">
       <div class="relative p-4 bg-white rounded-lg shadow dark:bg-gray-800 sm:p-5">
         <div class="flex justify-between items-center pb-4 mb-4 rounded-t border-b sm:mb-5 dark:border-gray-600">
@@ -56,39 +55,20 @@
 </template>
 
 <script setup lang="ts">
-  import { Modal } from "flowbite";
   import IconClose from "./icons/IconClose.vue";
-  import { onMounted, ref, watch } from "vue";
+  import { ref } from "vue";
   import IconAdd from './icons/IconAdd.vue';
   import { getBandForMac } from "../local-db";
   import type { UnsavedBand } from "../types";
-
-  const props = defineProps<{ show: boolean }>();
   const emit = defineEmits<{
     (e: 'before-close', newBand?: UnsavedBand, device?: BluetoothDevice): void
   }>();
-  const modalRoot = ref<HTMLDivElement>();
-  const modal = ref<Modal>();
   const nickname = ref("");
   const authKey = ref("");
   const hasBeenSubmitted = ref(false);
   const selectedBand = ref<{ device: BluetoothDevice; macAddress: string; }>();
   const bandLoading = ref(false);
   const bandWithMacExists = ref(false);
-
-  onMounted(() => {
-    modal.value = new Modal(modalRoot.value, {});
-  });
-
-  watch(
-    () => props.show,
-    (show) => {
-      if (show) {
-        modal.value?.show();
-        hasBeenSubmitted.value = false;
-      } else modal.value?.hide();
-    }
-  );
 
   async function showBluetoothDevicePicker() {
     const { getBandMac, requestDevice } = await import("../band-connection");
@@ -106,15 +86,6 @@
     bandLoading.value = false;
   }
 
-  function resetForm() {
-    hasBeenSubmitted.value = false;
-    selectedBand.value = undefined;
-    bandLoading.value = false;
-    bandWithMacExists.value = false;
-    nickname.value = "";
-    authKey.value = "";
-  }
-
   function handleSubmit(e: Event) {
     e.preventDefault();
     if (bandLoading.value || bandWithMacExists.value) return;
@@ -127,7 +98,6 @@
         deviceId: selectedBand.value.device.id,
       };
       const device = selectedBand.value.device;
-      resetForm();
       emit("before-close", newBand, device);
     }
   }

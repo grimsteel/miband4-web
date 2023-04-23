@@ -1,6 +1,5 @@
 <template>
-  <div ref="modalRoot" tabindex="-1" aria-hidden="true"
-    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-modal md:h-full">
+  <div tabindex="-1" role="dialog" aria-modal="true" class="fixed top-0 left-0 right-0 z-50 w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full justify-center items-center flex">
     <div class="relative p-4 w-full max-w-2xl h-full md:h-auto">
       <div class="relative p-4 bg-white rounded-lg shadow dark:bg-gray-800 sm:p-5">
         <div class="flex justify-between items-center pb-4 mb-4 rounded-t border-b sm:mb-5 dark:border-gray-600">
@@ -33,38 +32,18 @@
    * @emits before-close - Emitted when the modal is closed. The first parameter is a boolean indicating whether the user selected the correct device. The second parameter is the ID of the new bluetooth device
    */
 
-  import { Modal } from "flowbite";
   import IconClose from "./icons/IconClose.vue";
-  import { onMounted, ref, watch } from "vue";
+  import { ref } from "vue";
   import { getBandMac, requestDevice } from "../band-connection";
 
-  const props = defineProps<{ show: boolean, targetDevice?: { macAddress: string; deviceId: string; } }>();
+  const props = defineProps<{ targetDevice?: { macAddress: string; deviceId: string; } }>();
   const emit = defineEmits<{
     (e: "before-close", success: boolean, newDevice?: BluetoothDevice): void;
   }>();
-  const modal = ref<Modal>();
-  const modalRoot = ref<HTMLElement>();
   const bandLoadingMsg = ref("");
   const incorrectBand = ref(false);
 
-  onMounted(() => {
-    modal.value = new Modal(modalRoot.value, {});
-  });
-
-  watch(
-    () => props.show,
-    (show) => {
-      if (show) {
-        modal.value?.show();
-        incorrectBand.value = false;
-        bandLoadingMsg.value = "";
-      } else modal.value?.hide();
-    }
-  );
-
   function clearAndClose(success: boolean, newDevice?: BluetoothDevice) {
-    incorrectBand.value = false;
-    bandLoadingMsg.value = "";
     emit("before-close", success, newDevice);
   }
 

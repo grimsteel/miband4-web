@@ -21,9 +21,9 @@
         <BandTime v-bind="bandTime" @sync="syncBandTime" />
       </div>
     </section>
-    <TheNotSupportedModal @before-close="showNotSupportedModal = false" :show="showNotSupportedModal" />
-    <ReauthorizeModal @before-close="onReauthorizeComplete" :show="showReauthorizeModal" :target-device="currentBand" />
-    <IncorrectAuthKeyModal @before-close="onIncorrectAuthModalClose" :show="showIncorrectAuthKeyModal" />
+    <TheNotSupportedModal @before-close="currentModal = null" v-if="currentModal === 'not-supported'" />
+    <ReauthorizeModal @before-close="onReauthorizeComplete" v-if="currentModal === 'reauthorize'" :target-device="currentBand" />
+    <IncorrectAuthKeyModal @before-close="onIncorrectAuthModalClose" v-if="currentModal === 'incorrect-auth-key'" />
     <div ref="saveToastRoot" id="save-toast" class="fixed right-4 bottom-2 hidden items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
       <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg dark:bg-green-800 dark:text-green-200">
         <IconCheck class="w-5 h-5" />
@@ -35,17 +35,16 @@
           <IconClose class="w-5 h-5" />
       </button>
     </div>
+    <div class="bg-gray-900 bg-opacity-50 dark:bg-opacity-80 fixed inset-0 z-40" v-if="currentModal"></div>
   </main>
 </template>
 
 <script setup lang="ts">
   import { initDismisses } from "flowbite";
-  import { onMounted, ref, toRaw } from "vue";
+  import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
   import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setCurrentTime, setGoalNotifications, setIdleAlerts, webBluetoothSupported } from "../band-connection";
-  import IncorrectAuthKeyModal from "../components/IncorrectAuthKeyModal.vue";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
-  import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
   import BandTime from "../components/band-detail/BandTime.vue";
@@ -58,14 +57,12 @@
   import IconClose from "../components/icons/IconClose.vue";
   import { addActivityData, getBand } from "../local-db";
   import { useBandsStore } from "../pinia-stores";
-  import type { Band, IdleAlertsConfig, Time } from "../types";
+  import type { Band, IdleAlertsConfig } from "../types";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
   
-  const showNotSupportedModal = ref(false);
-  const showReauthorizeModal = ref(false);
-  const showIncorrectAuthKeyModal = ref(false);
+  const currentModal = ref<"not-supported" | "reauthorize" | "incorrect-auth-key" | null>(null);
   const currentBand = ref<Band>();
   const currentDevice = ref<BluetoothDeviceWrapper>();
   const saveToastRoot = ref<HTMLElement>();
@@ -112,6 +109,9 @@
     });
   }
 
+  const IncorrectAuthKeyModal = defineAsyncComponent(() => import("../components/IncorrectAuthKeyModal.vue"));
+  const TheNotSupportedModal = defineAsyncComponent(() => import("../components/TheNotSupportedModal.vue"));
+
   async function showDetails() {
     if (!currentBand.value || !currentDevice.value) return;
     const authKey = await authKeyStringToKey(currentBand.value.authKey);
@@ -119,7 +119,7 @@
     try {
       await authenticate(currentDevice.value!, authKey);
     } catch (err: any) {
-      if (err === "Incorrect auth key") showIncorrectAuthKeyModal.value = true;
+      if (err === "Incorrect auth key") currentModal.value = "incorrect-auth-key";
       throw err;
     }
     ({
@@ -135,7 +135,7 @@
   }
 
   async function onReauthorizeComplete(success: boolean, newDevice?: BluetoothDevice) {
-    showReauthorizeModal.value = false;
+    currentModal.value = null;
     if (!currentBand.value) return;
     if (success && newDevice) {
       await bandsStore.removeAuthorizedDevice(currentBand.value.deviceId);
@@ -147,7 +147,7 @@
   }
 
   async function onIncorrectAuthModalClose() {
-    showIncorrectAuthKeyModal.value = false;
+    currentModal.value = null;
     await router.push({ name: 'bands' });
   }
 
@@ -238,7 +238,7 @@
     initDismisses();
 
     if (!webBluetoothSupported) {
-      showNotSupportedModal.value = true;
+      currentModal.value = "not-supported";
       return;
     }
     
@@ -249,14 +249,12 @@
       currentDevice.value = new BluetoothDeviceWrapper(authorizedDevice);
       await showDetails();
     } else {
-      showReauthorizeModal.value = true;
+      currentModal.value = "reauthorize";
     }
   });
 
   onBeforeRouteLeave(() => {
-    showReauthorizeModal.value = false;
-    showNotSupportedModal.value = false;
-    showIncorrectAuthKeyModal.value = false;
+    currentModal.value = null;
     if (currentDevice.value?.device.gatt?.connected) currentDevice.value.device.gatt.disconnect();
   });
 </script>
