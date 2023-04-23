@@ -30,7 +30,7 @@
 <script setup lang="ts">
   import { computed } from "vue";
   import { useConfigStore } from "../../pinia-stores";
-  import LoaderPlaceholder from "./LoaderPlaceholder.vue";
+  import LoaderPlaceholder from "../LoaderPlaceholder.vue";
   const props = defineProps<{
     steps?: number;
     meters?: number;

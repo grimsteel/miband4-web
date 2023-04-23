@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-  import LoaderPlaceholder from "./LoaderPlaceholder.vue";
+  import LoaderPlaceholder from "../LoaderPlaceholder.vue";
   defineProps<{
     macAddress?: string;
     firmwareVersion?: string;

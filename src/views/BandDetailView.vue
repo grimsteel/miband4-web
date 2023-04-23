@@ -9,6 +9,7 @@
         <ActivityData :latest-activity-timestamp="currentBand?.latestActivityTimestamp" :loading="activityDataLoadingStatus" @fetch-data="syncActivityData" />
         <HeartRate />
         <ActivityGoal v-bind="activityGoal" @save="saveActivityGoal" />
+        <IdleAlerts v-bind="idleAlerts" @save="saveIdleAlerts" />
       </div>
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">Utilities</h2>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
@@ -22,6 +23,7 @@
     </section>
     <TheNotSupportedModal @before-close="showNotSupportedModal = false" :show="showNotSupportedModal" />
     <ReauthorizeModal @before-close="onReauthorizeComplete" :show="showReauthorizeModal" :target-device="currentBand" />
+    <IncorrectAuthKeyModal @before-close="onIncorrectAuthModalClose" :show="showIncorrectAuthKeyModal" />
     <div ref="saveToastRoot" id="save-toast" class="fixed right-4 bottom-2 hidden items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
       <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg dark:bg-green-800 dark:text-green-200">
         <IconCheck class="w-5 h-5" />
@@ -37,33 +39,37 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref } from "vue";
-  import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
-  import { useBandsStore } from "../pinia-stores";
+  import { initDismisses } from "flowbite";
+  import { onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentTime, getDeviceInfo, getSteps, setActivityGoal, setCurrentTime, setGoalNotifications, webBluetoothSupported } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setCurrentTime, setGoalNotifications, setIdleAlerts, webBluetoothSupported } from "../band-connection";
+  import IncorrectAuthKeyModal from "../components/IncorrectAuthKeyModal.vue";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
-  import DeviceInfo from "../components/band-detail/DeviceInfo.vue";
-  import Status from "../components/band-detail/Status.vue";
-  import BatteryInfo from "../components/band-detail/BatteryInfo.vue";
-  import type { Band } from "../types";
-  import { addActivityData, getBand } from "../local-db";
+  import TheNotSupportedModal from "../components/TheNotSupportedModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
-  import HeartRate from "../components/band-detail/HeartRate.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
   import BandTime from "../components/band-detail/BandTime.vue";
+  import BatteryInfo from "../components/band-detail/BatteryInfo.vue";
+  import DeviceInfo from "../components/band-detail/DeviceInfo.vue";
+  import HeartRate from "../components/band-detail/HeartRate.vue";
+  import IdleAlerts from "../components/band-detail/IdleAlerts.vue";
+  import Status from "../components/band-detail/Status.vue";
   import IconCheck from "../components/icons/IconCheck.vue";
   import IconClose from "../components/icons/IconClose.vue";
-  import { initDismisses } from "flowbite";
+  import { addActivityData, getBand } from "../local-db";
+  import { useBandsStore } from "../pinia-stores";
+  import type { Band, IdleAlertsConfig, Time } from "../types";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
   
   const showNotSupportedModal = ref(false);
   const showReauthorizeModal = ref(false);
+  const showIncorrectAuthKeyModal = ref(false);
   const currentBand = ref<Band>();
   const currentDevice = ref<BluetoothDeviceWrapper>();
   const saveToastRoot = ref<HTMLElement>();
+  const authenticated = ref(false);
   const deviceInfo = ref<{
     macAddress: string;
     firmwareVersion: string;
@@ -92,6 +98,10 @@
     time?: Date;
     loading: boolean;
   }>({ loading: false });
+  const idleAlerts = ref<{
+    idleAlerts?: IdleAlertsConfig;
+    loading: boolean;
+  }>({ loading: false });
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
@@ -105,11 +115,23 @@
   async function showDetails() {
     if (!currentBand.value || !currentDevice.value) return;
     const authKey = await authKeyStringToKey(currentBand.value.authKey);
-    await authenticate(currentDevice.value!, authKey);
+    // TODO: better loading indicators
+    try {
+      await authenticate(currentDevice.value!, authKey);
+    } catch (err: any) {
+      if (err === "Incorrect auth key") showIncorrectAuthKeyModal.value = true;
+      throw err;
+    }
+    ({
+      activityGoal: activityGoal.value.activityGoal,
+      goalNotifications: activityGoal.value.goalNotifications,
+    } = currentBand.value);
+    idleAlerts.value.idleAlerts = currentBand.value.idleAlerts;
     deviceInfo.value = await getDeviceInfo(currentDevice.value);
-    status.value = await getSteps(currentDevice.value);
+    status.value = await getCurrentStatus(currentDevice.value);
     batteryInfo.value = await getBatteryLevel(currentDevice.value);
     bandTime.value.time = await getCurrentTime(currentDevice.value);
+    authenticated.value = true;
   }
 
   async function onReauthorizeComplete(success: boolean, newDevice?: BluetoothDevice) {
@@ -122,6 +144,11 @@
       currentDevice.value = new BluetoothDeviceWrapper(newDevice);
       await showDetails();
     }
+  }
+
+  async function onIncorrectAuthModalClose() {
+    showIncorrectAuthKeyModal.value = false;
+    await router.push({ name: 'bands' });
   }
 
   function showToast() {
@@ -137,7 +164,7 @@
 
   async function syncActivityData() {
     await refreshBand();
-    if (!currentBand.value || !currentDevice.value) return;
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     const band = currentBand.value;
 
     const fetchFrom = band.latestActivityTimestamp ?
@@ -166,16 +193,27 @@
   }
 
   async function saveActivityGoal(steps: number, goalNotifications: boolean) {
-    if (!currentBand.value || !currentDevice.value) return;
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     activityGoal.value.loading = true;
+    console.log(goalNotifications)
     await setActivityGoal(currentDevice.value, steps);
     await setGoalNotifications(currentDevice.value, goalNotifications);
+    await bandsStore.updateBandForId(currentBand.value.id, { activityGoal: steps, goalNotifications });
     activityGoal.value.loading = false;
     showToast();
   }
 
+  async function saveIdleAlerts({ enabled, startTime, endTime } : IdleAlertsConfig) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    idleAlerts.value.loading = true;
+    await setIdleAlerts(currentDevice.value, enabled, startTime, endTime);
+    await bandsStore.updateBandForId(currentBand.value.id, { idleAlerts: { enabled, startTime: toRaw(startTime), endTime: toRaw(endTime) } });
+    idleAlerts.value.loading = false;
+    showToast();
+  }
+
   async function syncBandTime() {
-    if (!currentBand.value || !currentDevice.value) return;
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     bandTime.value.loading = true;
     await setCurrentTime(currentDevice.value, new Date());
     bandTime.value.time = await getCurrentTime(currentDevice.value);
@@ -191,6 +229,7 @@
     const band = await getBand(parsedId);
     if (!band) return bandNotFound();
     currentBand.value = band;
+    document.title = `${band.nickname} - Mi Band 4 Web`;
   }
 
   onMounted(async () => {
@@ -217,6 +256,7 @@
   onBeforeRouteLeave(() => {
     showReauthorizeModal.value = false;
     showNotSupportedModal.value = false;
+    showIncorrectAuthKeyModal.value = false;
     if (currentDevice.value?.device.gatt?.connected) currentDevice.value.device.gatt.disconnect();
   });
 </script>

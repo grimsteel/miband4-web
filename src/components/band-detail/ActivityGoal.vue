@@ -14,22 +14,10 @@
           </dd>
         </div>
         <div class="flex flex-col py-2">
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" v-model="goalNotifications" class="sr-only peer">
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-600"></div>
-            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">Goal Notifications</span>
-          </label>
+          <Toggle v-model="goalNotifications" text="Goal Notifications" />
         </div>
         <div class="flex flex-col pt-2">
-          <button type="submit" class="w-max text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800 inline-flex items-center" :disabled="!!loading">
-            <template v-if="loading">
-              <IconLoader class="inline w-4 h-4 mr-3 text-white animate-spin" />
-              Loading...
-            </template>
-            <template v-else>
-              Save
-            </template>
-          </button>
+          <ButtonWithLoader type="submit" :loading="loading" />
         </div>
       </dl>
     </form>
@@ -37,8 +25,9 @@
 </template>
 
 <script setup lang="ts">
-  import IconLoader from "../icons/IconLoader.vue";
+  import ButtonWithLoader from "../ButtonWithLoader.vue";
   import { ref, watch } from "vue";
+  import Toggle from "../Toggle.vue";
   const props = defineProps<{
     activityGoal?: number;
     goalNotifications?: boolean;

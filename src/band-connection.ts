@@ -1,4 +1,4 @@
-import type { ActivityItem, StoredActivityItem } from "./types";
+import type { ActivityItem, StoredActivityItem, Time } from "./types";
 
 /**
  * This class is used to store the services, characteristics and descriptors in a cache.
@@ -56,13 +56,21 @@ export class BluetoothDeviceWrapper {
     if (!this.device.gatt) throw new Error("Cannot access gatt");
     if (force || !this.device.gatt.connected) {
       try {
-        await this.device.gatt.connect()
+        await this.device.gatt.connect();
+        this.invalidateCache();
       } catch (e) {
         if ((e as Error).message?.includes("in range") && "watchAdvertisements" in this.device) {
           await connectAfterAdvertisment(this.device);
+          this.invalidateCache();
         } else throw e;
       }
     }
+  }
+
+  invalidateCache() {
+    this.services = {};
+    this.chars = {};
+    this.descriptors = {};
   }
   
   disconnect() {
@@ -114,6 +122,7 @@ async function encryptWithKey(key: CryptoKey, value: ArrayBuffer) {
   return new Uint8Array(encrypted.slice(0, 16)); // we only need the first 16 bytes
 }
 
+/** Wait for an advertisment then connect */
 async function connectAfterAdvertisment(bluetoothDevice: BluetoothDevice) {
   const abortController = new AbortController();
   await bluetoothDevice.watchAdvertisements({ signal: abortController.signal });
@@ -174,6 +183,7 @@ export async function getBandMac(device: BluetoothDevice, callbacks?: {
   }
 }
 
+/** Authenticate to the band by encrypting a random number it sends with the authKey */
 export async function authenticate(device: BluetoothDeviceWrapper, authKey: CryptoKey) {
   await device.connectIfNeeded();
   const authChar = await device.getCharacteristic(services.band2, characteristics.auth);
@@ -199,6 +209,9 @@ export async function authenticate(device: BluetoothDeviceWrapper, authKey: Cryp
         } else if (!resolved && byte1 === 0x03 && byte2 === 0x01) { 
           await stopResolving();
           reject("Authentication failed");
+        }  else if (!resolved && byte1 === 0x03 && byte2 === 0x08) { 
+          await stopResolving();
+          reject("Incorrect auth key");
         } else if (!resolved) {
           await stopResolving();
           reject(`Unknown authentication response: ${byte1} ${byte2}`);
@@ -214,6 +227,7 @@ export async function authenticate(device: BluetoothDeviceWrapper, authKey: Cryp
   });
 }
 
+/** Get the mac, software/hardware revisions, and info in the PNP id */
 export async function getDeviceInfo(device: BluetoothDeviceWrapper) {
   await device.connectIfNeeded();
 
@@ -252,6 +266,7 @@ export async function getDeviceInfo(device: BluetoothDeviceWrapper) {
   };
 }
 
+/** Get the battery level and other battery stats (last charged) */
 export async function getBatteryLevel(device: BluetoothDeviceWrapper) {
   await device.connectIfNeeded();
   const batteryLevelCharacteristic = await device.getCharacteristic(services.band1, characteristics.batteryLevel);
@@ -269,13 +284,14 @@ export async function getBatteryLevel(device: BluetoothDeviceWrapper) {
   };
 }
 
-export async function getSteps(device: BluetoothDeviceWrapper) {
+/** Get the current steps, distance, and calories burned */
+export async function getCurrentStatus(device: BluetoothDeviceWrapper) {
   await device.connectIfNeeded();
   const stepsCharacteristic = await device.getCharacteristic(services.band1, characteristics.steps);
   const stepsBytes = await stepsCharacteristic.readValue();
   const steps = stepsBytes.getUint16(1, true); // FIXME not sure if this should be 16 or 32 (I mean who in their right mind would walk 2^32 steps)
-  const meters = stepsBytes.getUint16(5, true);
-  const calories = stepsBytes.getUint16(9, true); // TODO: Burn 255+ calories to see if this is 8 or 16
+  const meters = stepsBytes.getUint16(5, true); // Defaults to meters
+  const calories = stepsBytes.getUint8(9); // TODO: Burn 255+ calories to see if this is 8 or 16
   // TODO: Find out how idle alerts work. Is it even possible?
   return {
     steps,
@@ -284,6 +300,7 @@ export async function getSteps(device: BluetoothDeviceWrapper) {
   };
 }
 
+/** Group and aggregate the raw minute by minute activity data by hour */
 function parseActivityData(activityData: ActivityItem[]): StoredActivityItem[] {
   // Group the data by hour
   const groupedByHour = activityData.reduce((acc, item) => {
@@ -306,6 +323,7 @@ function parseActivityData(activityData: ActivityItem[]): StoredActivityItem[] {
   return parsedData;
 }
 
+/** Fetch step/heart rate history */
 export async function getActivityData(
   device: BluetoothDeviceWrapper,
   startDate: Date,
@@ -331,6 +349,7 @@ export async function getActivityData(
       listeners?.onBatchFinished?.(parsedData);
     }
     
+    /** Send the band a request to get more data from the specified date */
     const requestMore = async (fromTime: Date) => {
       const payload = new Uint8Array([0x01, 0x01, 
         fromTime.getFullYear(), fromTime.getFullYear() >> 8, fromTime.getMonth() + 1, fromTime.getDate(), fromTime.getHours(), fromTime.getMinutes(),
@@ -355,7 +374,7 @@ export async function getActivityData(
       if (!valueDataView) return;
       const [b1, b2, b3] = [valueDataView.getUint8(0), valueDataView.getUint8(1), valueDataView.getUint8(2)];
       if (b1 === 0x10 && b2 === 0x01 && b3 === 0x01) {
-        // Recevied an activity packet start date
+        // Received an activity packet start date
         firstTimestamp = new Date(valueDataView.getUint16(7, true), valueDataView.getUint8(9) - 1, valueDataView.getUint8(10), valueDataView.getUint8(11), valueDataView.getUint8(12));
         console.debug(`Fetching data from ${firstTimestamp.toLocaleString()}`);
         pkg = 0;
@@ -403,6 +422,7 @@ export async function getActivityData(
   });
 }
 
+/** Turn notifications for the step goal on or off */
 export async function setGoalNotifications(device: BluetoothDeviceWrapper, goalNotifications: boolean) {
   await device.connectIfNeeded();
   const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
@@ -410,6 +430,7 @@ export async function setGoalNotifications(device: BluetoothDeviceWrapper, goalN
   await charConfig.writeValueWithoutResponse(payload);
 }
 
+/** Set the daily step goal */
 export async function setActivityGoal(device: BluetoothDeviceWrapper, steps: number) {
   await device.connectIfNeeded();
   const charConfig = await device.getCharacteristic(services.band1, characteristics.settings);
@@ -417,6 +438,7 @@ export async function setActivityGoal(device: BluetoothDeviceWrapper, steps: num
   await charConfig.writeValueWithResponse(payload); // This one needs a response. Not sure why.
 }
 
+/** Get the band's current system time */
 export async function getCurrentTime(device: BluetoothDeviceWrapper) {
   await device.connectIfNeeded();
   const currentTimeChar = await device.getCharacteristic(services.band1, characteristics.currentTime);
@@ -433,6 +455,7 @@ export async function getCurrentTime(device: BluetoothDeviceWrapper) {
   return currentTime;
 }
 
+/** Set the band's system time */
 export async function setCurrentTime(device: BluetoothDeviceWrapper, time: Date) {
   const payload = new Uint8Array([
     time.getFullYear(), time.getFullYear() >> 8,
@@ -449,4 +472,16 @@ export async function setCurrentTime(device: BluetoothDeviceWrapper, time: Date)
   await device.connectIfNeeded();
   const currentTimeChar = await device.getCharacteristic(services.band1, characteristics.currentTime);
   await currentTimeChar.writeValueWithResponse(payload);
+}
+
+/** Configure idle alerts on the device */
+export async function setIdleAlerts(device: BluetoothDeviceWrapper, enabled: boolean, startTime: Time, endTime: Time) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const payload = new Uint8Array([
+    0x08, enabled ? 0x01 : 0x00, 0x3c, 0x00,
+    startTime.hour, startTime.minute, endTime.hour, endTime.minute,
+    0x00, 0x00, 0x00, 0x00
+  ]);
+  await charConfig.writeValueWithoutResponse(payload);
 }

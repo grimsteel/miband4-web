@@ -16,10 +16,6 @@
 
   const configStore = useConfigStore();
 
-  function showAlert() {
-    alert("What did you expect? It says there's no functionality")
-  }
-
   const isProduction = import.meta.env.PROD;
 </script>
 
@@ -27,10 +23,6 @@
   <main>
     <section class="bg-white dark:bg-gray-900 relative">
         <div class="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16 z-10 relative">
-            <button @click="showAlert" class="inline-flex justify-between items-center py-1 px-1 pr-4 mb-7 text-sm text-rose-500 bg-rose-200 rounded-full dark:bg-rose-500 dark:text-rose-100 hover:bg-rose-300 dark:hover:bg-rose-700">
-                <span class="text-xs bg-rose-600 rounded-full text-white px-4 py-1.5 mr-3">New</span> <span class="text-sm font-medium">Absolutely no functionality!</span> 
-                <svg aria-hidden="true" class="ml-2 w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
-            </button>
             <h1 class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl lg:text-6xl dark:text-white">Your Mi Smart Band 4 &#8211; Offline</h1>
             <p class="mb-8 text-lg font-normal text-gray-500 lg:text-xl sm:px-16 lg:px-48 dark:text-gray-200">A lightweight web interface for the Mi Smart Band 4 that can run entirely offline. Use in any browser that supports the Web Bluetooth API</p>
             <div class="flex flex-col space-y-4 sm:flex-row sm:justify-center sm:space-y-0 sm:space-x-4">
@@ -77,7 +69,7 @@
           <div>
             <div class="max-w-screen-md mb-8 lg:mb-16">
               <h2 class="mb-4 text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white">Browser Support</h2>
-              <p class="text-gray-500 sm:text-sl dark:text-gray-400">Works in any browser that supports the Web Bluetooth API</p>
+              <p class="text-gray-600 sm:text-sl dark:text-gray-400">For best results, use Chrome, as it has the best support for the Web Bluetooth API.</p>
             </div>
             <ul role="list" class="max-w-sm divide-y divide-gray-200 dark:divide-gray-700">
               <BrowserSupportListItem browser="Chrome" since-version="56" />
@@ -93,7 +85,7 @@
           <div>
             <div class="max-w-screen-md mb-8 lg:mb-16">
               <h2 class="mb-4 text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white">OS Support</h2>
-              <p class="text-gray-500 sm:text-sl dark:text-gray-400">Support for the Web Bluetooth API currently <a href="https://github.com/WebBluetoothCG/web-bluetooth/blob/main/implementation-status.md" target="_blank" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">varies by OS</a></p>
+              <p class="text-gray-600 sm:text-sl dark:text-gray-400">Support for the Web Bluetooth API currently <a href="https://github.com/WebBluetoothCG/web-bluetooth/blob/main/implementation-status.md" target="_blank" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">varies by OS</a></p>
             </div>
             <ul role="list" class="max-w-sm divide-y divide-gray-200 dark:divide-gray-700">
               <BrowserSupportListItem browser="Chrome OS" since-version="" />
@@ -105,7 +97,7 @@
             </ul>
           </div>
         </div>
-        <p class="text-gray-500 sm:text-sl dark:text-gray-400 pt-3">For more information, see the <a href="https://github.com/WebBluetoothCG/web-bluetooth/blob/main/implementation-status.md" target="_blank" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">implementation status</a> page.</p>
+        <p class="text-gray-600 sm:text-sl dark:text-gray-400 pt-3">For more information, see the <a href="https://github.com/WebBluetoothCG/web-bluetooth/blob/main/implementation-status.md" target="_blank" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">implementation status</a> page.</p>
       </div>
     </section>
   </main>

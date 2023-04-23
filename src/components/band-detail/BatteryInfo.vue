@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
   import { computed } from "vue";
-  import LoaderPlaceholder from "./LoaderPlaceholder.vue";
+  import LoaderPlaceholder from "../LoaderPlaceholder.vue";
   const props = defineProps<{
     batteryLevel?: number;
     lastOff?: Date;

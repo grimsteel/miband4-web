@@ -14,6 +14,12 @@ export interface StoredActivityItem {
   timestamp: Date;
 }
 
+export interface IdleAlertsConfig {
+  enabled: boolean;
+  startTime: Time;
+  endTime: Time;
+}
+
 export interface Band {
   id: number;
   nickname: string;
@@ -22,7 +28,15 @@ export interface Band {
   dateAdded: Date;
   deviceId: string;
   latestActivityTimestamp?: Date;
+  activityGoal?: number;
+  goalNotifications?: boolean;
+  idleAlerts?: IdleAlertsConfig;
 };
+
+export interface Time {
+  hour: number;
+  minute: number;
+}
 
 export interface MiBandDB extends DBSchema {
   config: {

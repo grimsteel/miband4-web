@@ -36,7 +36,13 @@ html, body, #app {
   }
 }
 
-.sr-only {
+.sr-only:not(input) {
   position: relative;
   display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  input[type="time"] {
+    color-scheme: dark;
+  }
 }

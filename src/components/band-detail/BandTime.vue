@@ -10,23 +10,15 @@
         </dd>
       </div>
       <div class="flex flex-col pt-2">
-        <button @click="$emit('sync')" type="button" class="w-max text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800 inline-flex items-center" :disabled="!!loading">
-          <template v-if="loading">
-            <IconLoader class="inline w-4 h-4 mr-3 text-white animate-spin" />
-            Loading...
-          </template>
-          <template v-else>
-            Sync to System Time
-          </template>
-        </button>
+        <ButtonWithLoader @click="$emit('sync')" :loading="loading" text="Sync to System Time" />
       </div>
     </dl>
   </div>
 </template>
 
 <script setup lang="ts">
-  import IconLoader from "../icons/IconLoader.vue";
-  import LoaderPlaceholder from "./LoaderPlaceholder.vue";
+  import ButtonWithLoader from "../ButtonWithLoader.vue";
+  import LoaderPlaceholder from "../LoaderPlaceholder.vue";
   defineProps<{
     time?: Date;
     loading: boolean;

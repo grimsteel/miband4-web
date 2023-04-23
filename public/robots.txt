@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://miband4.web.app/sitemap.xml

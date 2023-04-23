@@ -38,6 +38,9 @@ const router = createRouter({
       path: '/bands/:id',
       name: 'band-detail',
       component: () => import('./views/BandDetailView.vue'),
+      meta: {
+        title: "Band Detail"
+      }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -52,6 +55,7 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   document.title = to.meta.title ? `${to.meta.title} - Mi Band 4 Web` : `Mi Band 4 Web`;
+  document.querySelector("link[rel='canonical']")?.setAttribute("href", new URL(to.path, "https://miband4.web.app").toString());
   next();
 });
 
