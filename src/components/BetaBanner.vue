@@ -7,7 +7,7 @@
         <p class="flex items-center text-sm font-normal text-gray-500 dark:text-gray-400">There are almost certaintly bugs, and many features are incomplete. Star the GitHub Repo to show your support!</p>
     </div>
     <div class="flex items-center flex-shrink-0">
-        <a href="https://github.com/grimsteel/miband4-web" class="inline-flex justify-center items-center px-5 py-2 mr-2 text-xs font-medium text-white bg-yellow-400 rounded-lg hover:bg-yellow-500 focus:ring-4 focus:ring-yellow-300 dark:bg-yellow-500 dark:hover:bg-yellow-600 focus:outline-none dark:focus:ring-yellow-800">
+        <a href="https://github.com/grimsteel/miband4-web" class="inline-flex justify-center items-center px-5 py-2 mr-2 text-xs font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-500 dark:bg-yellow-500 dark:hover:bg-yellow-600 focus:outline-none dark:focus:ring-yellow-800">
           <IconStar class="w-4 h-4 mr-1" />
           Star
         </a>

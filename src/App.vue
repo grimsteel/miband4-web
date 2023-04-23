@@ -8,9 +8,7 @@
     <Navbar />
   </header>
 
-  <RouterView v-slot="{ Component, route }">
-    <transition name="fade">
-      <component :is="Component" :key="route.path" />
-    </transition>
+  <RouterView v-slot="{ Component }">
+    <component :is="Component" />
   </RouterView>
 </template>

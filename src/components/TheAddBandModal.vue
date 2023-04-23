@@ -60,7 +60,6 @@
   import IconClose from "./icons/IconClose.vue";
   import { onMounted, ref, watch } from "vue";
   import IconAdd from './icons/IconAdd.vue';
-  import { getBandMac, requestDevice } from "../band-connection";
   import { getBandForMac } from "../local-db";
   import type { UnsavedBand } from "../types";
 
@@ -92,6 +91,7 @@
   );
 
   async function showBluetoothDevicePicker() {
+    const { getBandMac, requestDevice } = await import("../band-connection");
     if (bandLoading.value) return;
     bandLoading.value = true;
     const device = await requestDevice();

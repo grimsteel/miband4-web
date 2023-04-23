@@ -27,7 +27,8 @@ export default defineConfig({
           { src: "icons/icon-192-maskable.png", type: "image/png", sizes: "192x192", purpose: "maskable" },
           { src: "icons/icon-512-maskable.png", type: "image/png", sizes: "512x512", purpose: "maskable" }
         ]
-      }
+      },
+      filename: "sw.js"
     })
   ],
   resolve: {

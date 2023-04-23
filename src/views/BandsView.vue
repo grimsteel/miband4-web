@@ -53,7 +53,6 @@
   import { useBandsStore } from "../pinia-stores";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
   import TheAddBandModal from "../components/TheAddBandModal.vue";
-  import { webBluetoothSupported } from "../band-connection";
   import DeleteBandModal from "../components/DeleteBandModal.vue";
   import EditBandModal from "../components/EditBandModal.vue";
   import type { Band, UnsavedBand } from "../types";
@@ -69,6 +68,7 @@
   const router = useRouter();
 
   async function addNewBand() {
+    const { webBluetoothSupported } = await import("../band-connection");
     if (await webBluetoothSupported()) showAddBandModal.value = true;
     else showNotSupportedModal.value = true;
   }
