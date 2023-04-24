@@ -4,14 +4,18 @@
       <h1 class="mb-6 text-4xl tracking-tight font-bold text-gray-900 dark:text-white">{{ currentBand?.nickname || "Loading band..." }}</h1>
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">Fitness</h2>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
-      <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0">
+      <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0 mb-3">
         <Status v-bind="status" />
         <ActivityData :latest-activity-timestamp="currentBand?.latestActivityTimestamp" :loading="activityDataLoadingStatus" @fetch-data="syncActivityData" />
         <HeartRate />
-        <ActivityGoal v-bind="activityGoal" @save="saveActivityGoal" />
-        <IdleAlerts v-bind="idleAlerts" @save="saveIdleAlerts" />
+        <ActivityGoal :loading="activityGoal.loading" :activity-goal="currentBand?.activityGoal" :goal-notifications="currentBand?.goalNotifications" @save="saveActivityGoal" />
+        <IdleAlerts :loading="idleAlerts.loading" :idle-alerts="currentBand?.idleAlerts" @save="saveIdleAlerts" />
       </div>
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">Utilities</h2>
+      <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
+      <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0">
+        <Alarms :alarms="currentBand?.alarms" :loading="alarms.loading" @save="saveAlarm" />
+      </div>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">System</h2>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
@@ -43,7 +47,7 @@
   import { initDismisses } from "flowbite";
   import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setCurrentTime, setGoalNotifications, setIdleAlerts, webBluetoothSupported } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, webBluetoothSupported } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
@@ -57,7 +61,8 @@
   import IconClose from "../components/icons/IconClose.vue";
   import { addActivityData, getBand } from "../local-db";
   import { useBandsStore } from "../pinia-stores";
-  import type { Band, IdleAlertsConfig } from "../types";
+  import type { Alarm, Band, IdleAlertsConfig } from "../types";
+  import Alarms from "../components/band-detail/Alarms.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -85,10 +90,9 @@
     lastOff: Date;
     lastLevel: number;
     lastCharge: Date;
+    isCharging: boolean;
   }>();
   const activityGoal = ref<{
-    activityGoal?: number;
-    goalNotifications?: boolean;
     loading: boolean;
   }>({ loading: false });
   const bandTime = ref<{
@@ -96,9 +100,11 @@
     loading: boolean;
   }>({ loading: false });
   const idleAlerts = ref<{
-    idleAlerts?: IdleAlertsConfig;
     loading: boolean;
   }>({ loading: false });
+  const alarms = ref<{
+    loading: boolean;
+  }>({ loading: true });
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
@@ -122,16 +128,12 @@
       if (err === "Incorrect auth key") currentModal.value = "incorrect-auth-key";
       throw err;
     }
-    ({
-      activityGoal: activityGoal.value.activityGoal,
-      goalNotifications: activityGoal.value.goalNotifications,
-    } = currentBand.value);
-    idleAlerts.value.idleAlerts = currentBand.value.idleAlerts;
     deviceInfo.value = await getDeviceInfo(currentDevice.value);
     status.value = await getCurrentStatus(currentDevice.value);
     batteryInfo.value = await getBatteryLevel(currentDevice.value);
     bandTime.value.time = await getCurrentTime(currentDevice.value);
     authenticated.value = true;
+    alarms.value.loading = false;
   }
 
   async function onReauthorizeComplete(success: boolean, newDevice?: BluetoothDevice) {
@@ -195,7 +197,6 @@
   async function saveActivityGoal(steps: number, goalNotifications: boolean) {
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     activityGoal.value.loading = true;
-    console.log(goalNotifications)
     await setActivityGoal(currentDevice.value, steps);
     await setGoalNotifications(currentDevice.value, goalNotifications);
     await bandsStore.updateBandForId(currentBand.value.id, { activityGoal: steps, goalNotifications });
@@ -218,6 +219,23 @@
     await setCurrentTime(currentDevice.value, new Date());
     bandTime.value.time = await getCurrentTime(currentDevice.value);
     bandTime.value.loading = false;
+    showToast();
+  }
+  async function saveAlarm(alarm: Alarm) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    alarms.value.loading = true;
+    await setAlarm(currentDevice.value, alarm);
+    await refreshBand();
+    const currentAlarms = currentBand.value.alarms?.map(alarm => toRaw(alarm)) || [];
+    const newAlarms =
+      alarm.days.size > 0 ? ( // if this alarm is not being deleted
+        currentAlarms.find(({ id }) => id === alarm.id) ? // and it already exists
+        currentAlarms.map(a => a.id === alarm.id ? alarm : a) : // update it
+        [...currentAlarms, alarm] // otherwise add it
+      ) : currentAlarms.filter(({ id }) => id !== alarm.id); // if this alarm is being deleted, remove it
+    currentBand.value.alarms = newAlarms;
+    await bandsStore.updateBandForId(currentBand.value.id, { alarms: newAlarms });
+    alarms.value.loading = false;
     showToast();
   }
 

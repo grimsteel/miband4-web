@@ -1,4 +1,4 @@
-import type { ActivityItem, StoredActivityItem, Time } from "./types";
+import type { ActivityItem, Alarm, ForecastDay, StoredActivityItem, Time, WeatherIcon } from "./types";
 
 /**
  * This class is used to store the services, characteristics and descriptors in a cache.
@@ -95,6 +95,7 @@ const characteristics = {
   hardwareRevision: BluetoothUUID.getCharacteristic("hardware_revision_string"),
   softwareRevision: BluetoothUUID.getCharacteristic("software_revision_string"),
   pnpId: BluetoothUUID.getCharacteristic("pnp_id"),
+  chunkedTransfer: "00000020-0000-3512-2118-0009af100700",
   auth: "00000009-0000-3512-2118-0009af100700",
   settings: "00000008-0000-3512-2118-0009af100700",
   steps: "00000007-0000-3512-2118-0009af100700",
@@ -106,6 +107,7 @@ const characteristics = {
 };
 
 const oneMinute = 60 * 1000;
+const maxChunklength = 17;
 
 export const webBluetoothSupported = async () => "bluetooth" in navigator && await navigator.bluetooth.getAvailability();
 
@@ -272,15 +274,16 @@ export async function getBatteryLevel(device: BluetoothDeviceWrapper) {
   const batteryLevelCharacteristic = await device.getCharacteristic(services.band1, characteristics.batteryLevel);
   const batteryLevelBytes = await batteryLevelCharacteristic.readValue();
   const batteryLevel = batteryLevelBytes.getUint8(1);
+  const isCharging = batteryLevelBytes.getUint8(2) !== 0;
   const lastOff = new Date(batteryLevelBytes.getUint16(3, true), batteryLevelBytes.getUint8(5) - 1, batteryLevelBytes.getUint8(6), batteryLevelBytes.getUint8(7), batteryLevelBytes.getUint8(8), batteryLevelBytes.getUint8(9));
   const lastCharge = new Date(batteryLevelBytes.getUint16(11, true), batteryLevelBytes.getUint8(13) - 1, batteryLevelBytes.getUint8(14), batteryLevelBytes.getUint8(15), batteryLevelBytes.getUint8(16), batteryLevelBytes.getUint8(17));
   const lastLevel = batteryLevelBytes.getUint8(19);
-  // TODO: Find out what the current status is (charging, full, etc)
   return {
     batteryLevel,
     lastOff,
     lastCharge,
-    lastLevel
+    lastLevel,
+    isCharging
   };
 }
 
@@ -484,4 +487,49 @@ export async function setIdleAlerts(device: BluetoothDeviceWrapper, enabled: boo
     0x00, 0x00, 0x00, 0x00
   ]);
   await charConfig.writeValueWithoutResponse(payload);
+}
+
+export async function setAlarm(device: BluetoothDeviceWrapper, alarm: Alarm) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const repetitionMask = [...alarm.days].reduce((acc, day) => acc | (1 << day), 0);
+  const alarmTag = alarm.id | (alarm.enabled ? 0x80 : 0x00);
+  console.log(alarm.time);
+  const payload = new Uint8Array([
+    0x02, alarmTag, alarm.time.hour, alarm.time.minute, repetitionMask
+  ]);
+  await charConfig.writeValueWithoutResponse(payload);
+}
+
+async function writeChunked(device: BluetoothDeviceWrapper, type: number, data: Uint8Array) {
+  const charChunkedTransfer = await device.getCharacteristic(services.band1, characteristics.chunkedTransfer);
+  for (let remaining = data.byteLength, count = 0; remaining > 0; count++) {
+    const bytesToCopy = Math.min(remaining, maxChunklength);
+    let flag = 0;
+    if (remaining <= maxChunklength) { // last payload
+      flag |= 0x80;
+      if (count === 0) flag |= 0x40; // first and last payload
+    } else if (count > 0) { // middle payload
+      flag |= 0x40;
+    }
+    const payload = concatUint8Arrays(new Uint8Array([0, flag | type, count & 0xff]), data.slice(count * maxChunklength, count * maxChunklength + bytesToCopy));
+    await charChunkedTransfer.writeValueWithoutResponse(payload);
+    remaining -= bytesToCopy;
+  }
+}
+
+export async function setWeather(device: BluetoothDeviceWrapper, city: string, airIndex: number, currentIcon: WeatherIcon, currentTemp: number, forecast: ForecastDay[]) {
+  await device.connectIfNeeded();
+  const encoder = new TextEncoder();
+  const cityPayload = new Uint8Array([0x08, ...encoder.encode(city), 0x00]);
+  const currentTime = Math.floor(Date.now() / 1000);
+  const timeBytes = [currentTime, currentTime >> 8, currentTime >> 16, currentTime >> 24];
+  const airIndexPayload = new Uint8Array([0x04, ...timeBytes, 0xec, airIndex, 0x00, 0x00]);
+  const currentTempPayload = new Uint8Array([0x02, ...timeBytes, 0xec, currentIcon, currentTemp, 0x41, 0x00]); // Same as above
+  const forecastBytes = forecast.flatMap(({ high, low, text, icon }) => [icon, 0x00, high, low, ...encoder.encode(text), 0x00]);
+  const forecastPayload = new Uint8Array([0x01, ...timeBytes, 0xec, forecast.length, ...forecastBytes]);
+  await writeChunked(device, 0x01, cityPayload);
+  await writeChunked(device, 0x01, airIndexPayload);
+  await writeChunked(device, 0x01, currentTempPayload);
+  await writeChunked(device, 0x01, forecastPayload);
 }

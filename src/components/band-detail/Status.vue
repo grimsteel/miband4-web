@@ -40,7 +40,7 @@
   const configStore = useConfigStore();
 
   const convertedDistance = computed(() => {
-    if (!props.meters) return undefined;
+    if (props.meters === undefined) return undefined;
     else if (configStore.distanceUnit === "km") return (props.meters / 1000).toFixed(2);
     else if (configStore.distanceUnit === "miles") return (props.meters / 1609).toFixed(2);
     else return "";

@@ -6,12 +6,15 @@
         <dt class="mb-1">
           <div class="flex justify-between">
             <span class="text-base font-medium text-gray-500 dark:text-gray-400">Battery Level</span>
-            <span class="text-sm font-medium" v-if="batteryLevel">{{ batteryLevel }}%</span>
+            <span class="text-sm font-medium" v-if="batteryLevel">
+              <span v-if="isCharging">Charging - </span>
+              {{ batteryLevel }}%
+            </span>
           </div>
         </dt>
         <dd class="text-lg font-semibold">
           <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700" v-if="batteryLevel">
-            <div class="h-2 rounded-full" :class="sliderBackground" :style="`width: ${ batteryLevel }%`"></div>
+            <div class="h-2 rounded-full" :class="`${sliderBackground} ${isCharging ? 'animate-pulse' :''}`" :style="`width: ${ batteryLevel }%`"></div>
           </div>
           <LoaderPlaceholder v-else />
         </dd>
@@ -31,7 +34,7 @@
         </dd>
       </div>
       <div class="flex flex-col pt-2">
-        <dt class="mb-1 text-gray-500 dark:text-gray-400">Last Charge Level</dt>
+        <dt class="mb-1 text-gray-500 dark:text-gray-400">{{ (!isCharging || isCharging === undefined) ? "Last Charge Level" : "Level Before Charging" }}</dt>
         <dd class="text-lg font-semibold">
           <span v-if="lastLevel">{{ lastLevel }}%</span>
           <LoaderPlaceholder v-else />
@@ -49,6 +52,7 @@
     lastOff?: Date;
     lastLevel?: number;
     lastCharge?: Date;
+    isCharging?: boolean;
   }>();
 
   const sliderBackground = computed(() => {

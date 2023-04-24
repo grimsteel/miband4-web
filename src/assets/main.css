@@ -46,3 +46,93 @@ html, body, #app {
     color-scheme: dark;
   }
 }
+
+.weather-icon {
+  width: 48px;
+  height: 48px;
+  background-image: url("./weather-icons.png");
+  &.blowing-dust {
+    background-position: 0 0;
+  }
+  &.cloud {
+    background-position: -48px 0;
+  }
+  &.floating-dust {
+    background-position: 0 -48px;
+  }
+  &.fog {
+    background-position: -48px -48px;
+  }
+  &.hail {
+    background-position: -96px 0;
+  }
+  &.haze {
+    background-position: -96px -48px;
+  }
+  &.lightning-rain-cloud {
+    background-position: 0 -96px;
+  }
+  &.lightning-snow-cloud {
+    background-position: -48px -96px;
+  }
+  &.moon {
+    background-position: -96px -96px;
+  }
+  &.moon-cloud {
+    background-position: -144px 0;
+  }
+  &.moon-rain-cloud {
+    background-position: -144px -48px;
+  }
+  &.moon-snow-cloud {
+    background-position: -144px -96px;
+  }
+  &.rain-3 {
+    background-position: 0 -144px;
+  }
+  &.rain-4 {
+    background-position: -48px -144px;
+  }
+  &.rain-5 {
+    background-position: -96px -144px;
+  }
+  &.rain-5-alt {
+    background-position: -144px -144px;
+  }
+  &.rain-6 {
+    background-position: -192px 0;
+  }
+  &.rain-snow-cloud {
+    background-position: -192px -48px;
+  }
+  &.sandstorm {
+    background-position: -192px -96px;
+  }
+  &.snow-1 {
+    background-position: -192px -144px;
+  }
+  &.snow-2 {
+    background-position: 0 -192px;
+  }
+  &.snow-3 {
+    background-position: -48px -192px;
+  }
+  &.snow-4 {
+    background-position: -96px -192px;
+  }
+  &.sun {
+    background-position: -144px -192px;
+  }
+  &.sun-cloud {
+    background-position: -192px -192px;
+  }
+  &.sun-rain-cloud {
+    background-position: -240px 0;
+  }
+  &.sun-snow-cloud {
+    background-position: -240px -48px;
+  }
+  &.tornado {
+    background-position: -240px -96px;
+  }
+}
