@@ -16,12 +16,7 @@ vi.mock("../src/local-db.ts", () => ({
 
 let wrapper: VueWrapper;
 beforeEach(async () => {
-  wrapper = mount(TheAddBandModal, {
-    props: {
-      show: false
-    }
-  });
-  await wrapper.setProps({ show: true });
+  wrapper = mount(TheAddBandModal);
 });
 
 afterEach(() => void vi.clearAllMocks());

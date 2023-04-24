@@ -1,7 +1,6 @@
 import { type VueWrapper, mount, flushPromises } from "@vue/test-utils";
 import ReauthorizeModal from "../src/components/ReauthorizeModal.vue";
 import { getBandMac, requestDevice } from "../src/band-connection";
-import { nextTick } from "vue";
 
 vi.mock("../src/band-connection.ts", () => ({
   requestDevice: vi.fn(() => Promise.resolve({ id: "Test" })),
@@ -12,7 +11,6 @@ let wrapper: VueWrapper;
 beforeEach(async () => {
   wrapper = mount(ReauthorizeModal, {
     props: {
-      show: false,
       targetDevice: {
         deviceId: "Test-id",
         macAddress: "Test-mac"
@@ -24,7 +22,6 @@ beforeEach(async () => {
       }
     }
   });
-  await wrapper.setProps({ show: true });
 });
 
 afterEach(() => void vi.clearAllMocks());
