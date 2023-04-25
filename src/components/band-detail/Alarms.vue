@@ -3,21 +3,21 @@
     <div class="flex items-center justify-between mb-3">
       <h5 class="text-2xl font-bold tracking-tight leading-none text-gray-900 dark:text-white">{{ cardTitle }}</h5>
       <button v-if="currentScreen === 'edit'" @click="showListScreen" type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg p-1.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
-        <IconClose class="w-4 h-4" fill="currentColor" />
+        <IconClose class="w-4 h-4" />
         <span class="sr-only">Cancel</span>
       </button>
     </div>
     <template v-if="currentScreen === 'list'">
       <template v-if="!loading">
         <div class="max-w-md font-medium text-gray-900 dark:text-white mb-2 divide-y divide-gray-200 dark:divide-gray-600" v-if="alarms?.length">
-          <button type="button" class="w-full p-3 rounded-md text-left hover:bg-gray-100 hover:dark:bg-gray-700" v-for="alarm in alarms || []" @click="showEditScreen(alarm)">
-            <p class="mb-1 font-semibold">{{ new Date(0, 0, 0, alarm.time.hour, alarm.time.minute).toLocaleTimeString(undefined, { timeStyle: "short" }) }}</p>
-            <p class="text-gray-500 dark:text-gray-400">{{ getRepetitionDescriptiveText(alarm) }}</p>
+          <button data-test="alarm" type="button" class="w-full p-3 rounded-md text-left hover:bg-gray-100 hover:dark:bg-gray-700" v-for="alarm in alarms || []" @click="showEditScreen(alarm)">
+            <p class="mb-1 font-semibold" data-test="time">{{ new Date(0, 0, 0, alarm.time.hour, alarm.time.minute).toLocaleTimeString(undefined, { timeStyle: "short" }) }}</p>
+            <p class="text-gray-500 dark:text-gray-400" data-test="days">{{ getRepetitionDescriptiveText(alarm) }}</p>
           </button>
         </div>
         <p class="font-normal text-gray-700 dark:text-gray-400 text-sm max-w-md mb-2" v-else>Not seeing your alarms? Alarms on the band are write only, so we can't track modifications made outside of this app.</p>
         <div>
-          <ButtonWithLoader type="button" :loading="false" text="Add Alarm" v-if="!alarms || alarms.length < 0xf" @click="showEditScreen(null)" />
+          <ButtonWithLoader type="button" :loading="false" text="Add Alarm" data-test="add-alarm" v-if="!alarms || alarms.length < 0xf" @click="showEditScreen(null)" />
           <ButtonWithLoader type="button" :loading="false" text="Delete" v-if="currentAlarm" classes="bg-red-700 hover:bg-red-800 focus:ring-red-300 dark:bg-red-700 dark:hover:bg-red-800 dark:focus:ring-red-900" @click="deleteAlarm" />
         </div>
       </template>
@@ -53,6 +53,7 @@
   import ButtonWithLoader from "../ButtonWithLoader.vue";
   import { Weekday, type Alarm, type Time, enumKeys } from "../../types";
   import { computed, ref, toRaw } from "vue";
+  import { getRepetitionDescriptiveText } from "../../utils";
   import TimeInput from "../TimeInput.vue";
   import Toggle from "../Toggle.vue";
   import IconClose from "../icons/IconClose.vue";
@@ -78,19 +79,6 @@
   const alarmTime = ref<Time>(defaultTime);
   const alarmEnabled = ref(defaultEnabled);
   const selectedWeekdays = ref<Set<Weekday>>(structuredClone(defaultWeekdays));
-
-  function getRepetitionDescriptiveText({ days }: Alarm) {
-    if (days.has(Weekday.Everyday)) return "Everyday";
-    const dayStrings = [];
-    if (days.has(Weekday.Sunday)) dayStrings.push("Sun");
-    if (days.has(Weekday.Monday)) dayStrings.push("Mon");
-    if (days.has(Weekday.Tuesday)) dayStrings.push("Tue");
-    if (days.has(Weekday.Wednesday)) dayStrings.push("Wed");
-    if (days.has(Weekday.Thursday)) dayStrings.push("Thu");
-    if (days.has(Weekday.Friday)) dayStrings.push("Fri");
-    if (days.has(Weekday.Saturday)) dayStrings.push("Sat");
-    return dayStrings.join(", ");
-  }
 
   const cardTitle = computed(() => {
     if (currentScreen.value === "list") return "Alarms";
