@@ -48,91 +48,128 @@ html, body, #app {
 }
 
 .weather-icon {
-  width: 48px;
-  height: 48px;
+  --imagemap-icon-dimensions: 48;
+  --intended-icon-dimensions: 48;
+  --imagemap-width: 288px;
+  --imagemap-height: 240px;
+  --size-multiplier: var(--intended-icon-dimensions) / var(--imagemap-icon-dimensions);
+  width: calc(var(--intended-icon-dimensions) * 1px);
+  height: calc(var(--intended-icon-dimensions) * 1px);
   background-image: url("./weather-icons.png");
+  background-position: calc(var(--x) * var(--size-multiplier)) calc(var(--y) * var(--size-multiplier));
+  background-size: calc(var(--imagemap-width) * (var(--size-multiplier))) calc(var(--imagemap-height) * (var(--size-multiplier)));
+  border: 2px solid black;
+  box-sizing: content-box;
   &.blowing-dust {
-    background-position: 0 0;
+    --x: 0px;
+    --y: 0px;
   }
   &.cloud {
-    background-position: -48px 0;
+    --x: -48px;
+    --y: 0px;
   }
   &.floating-dust {
-    background-position: 0 -48px;
+    --x: 0px;
+    --y: -48px;
   }
   &.fog {
-    background-position: -48px -48px;
+    --x: -48px;
+    --y: -48px;
   }
   &.hail {
-    background-position: -96px 0;
+    --x: -96px;
+    --y: 0px;
   }
   &.haze {
-    background-position: -96px -48px;
+    --x: -96px;
+    --y: -48px;
   }
   &.lightning-rain-cloud {
-    background-position: 0 -96px;
+    --x: 0px;
+    --y: -96px;
   }
   &.lightning-snow-cloud {
-    background-position: -48px -96px;
+    --x: -48px;
+    --y: -96px;
   }
   &.moon {
-    background-position: -96px -96px;
+    --x: -96px
+    --y: -96px;;
   }
   &.moon-cloud {
-    background-position: -144px 0;
+    --x: -144px;
+    --y: 0px;
   }
   &.moon-rain-cloud {
-    background-position: -144px -48px;
+    --x: -144px;
+    --y: -48px;
   }
   &.moon-snow-cloud {
-    background-position: -144px -96px;
+    --x: -144px;
+    --y: -96px;
   }
   &.rain-3 {
-    background-position: 0 -144px;
+    --x: 0px;
+    --y: -144px;
   }
   &.rain-4 {
-    background-position: -48px -144px;
+    --x: -48px;
+    --y: -144px;
   }
   &.rain-5 {
-    background-position: -96px -144px;
+    --x: -96px;
+    --y: -144px;
   }
   &.rain-5-alt {
-    background-position: -144px -144px;
+    --x: -144px;
+    --y: -144px;
   }
   &.rain-6 {
-    background-position: -192px 0;
+    --x: -192px;
+    --y: 0px;
   }
   &.rain-snow-cloud {
-    background-position: -192px -48px;
+    --x: -192px;
+    --y: -48px;
   }
   &.sandstorm {
-    background-position: -192px -96px;
+    --x: -192px;
+    --y: -96px;
   }
   &.snow-1 {
-    background-position: -192px -144px;
+    --x: -192px;
+    --y: -144px;
   }
   &.snow-2 {
-    background-position: 0 -192px;
+    --x: 0px;
+    --y: -192px;
   }
   &.snow-3 {
-    background-position: -48px -192px;
+    --x: -48px;
+    --y: -192px;
   }
   &.snow-4 {
-    background-position: -96px -192px;
+    --x: -96px;
+    --y: -192px;
   }
   &.sun {
-    background-position: -144px -192px;
+    --x: -144px;
+    --y: -192px;
   }
   &.sun-cloud {
-    background-position: -192px -192px;
+    --x: -192px;
+    --y: -192px;
   }
   &.sun-rain-cloud {
-    background-position: -240px 0;
+    --x: -240px;
+    --y: 0px;
   }
   &.sun-snow-cloud {
-    background-position: -240px -48px;
+    --x: -240px;
+    --y: -48px;
   }
   &.tornado {
-    background-position: -240px -96px;
+    --x: -240px;
+    --y: -96px;
   }
 }

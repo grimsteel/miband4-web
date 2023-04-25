@@ -15,6 +15,7 @@
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0">
         <Alarms :alarms="currentBand?.alarms" :loading="alarms.loading" @save="saveAlarm" />
+        <Weather />
       </div>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">System</h2>
@@ -63,6 +64,7 @@
   import { useBandsStore } from "../pinia-stores";
   import type { Alarm, Band, IdleAlertsConfig } from "../types";
   import Alarms from "../components/band-detail/Alarms.vue";
+  import Weather from "../components/band-detail/Weather.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;

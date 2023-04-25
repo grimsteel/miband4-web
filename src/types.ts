@@ -31,34 +31,37 @@ export enum Weekday {
   Everyday = 7
 }
 
-export enum WeatherIcon {
-  Sun = 0x00,
-  SunCloud = 0x01,
-  Cloud = 0x02,
-  SunRainCloud = 0x03,
-  LightningCloud = 0x04,
-  LightningSnowCloud = 0x05,
-  RainSnowCloud = 0x06,
-  RainCloud3 = 0x07,
-  RainCloud4 = 0x08,
-  RainCloud5 = 0x09,
-  RainCloud6 = 0x0A,
-  SnowCloud1 = 0x0E,
-  SnowCloud2 = 0x0F,
-  SnowCloud3 = 0x10,
-  SnowCloud4 = 0x11,
-  Sleet = 0x12,
-  RainSleetCloud = 0x13,
-  CurledSandstorm = 0x14,
-  Sandstorm = 0x1D,
-  Tornado = 0x1F
-}
+export const WeatherIcons = [
+  { code: 0x00, icon: "sun", name: "Sun" },
+  { code: 0x01, icon: "moon", name: "Partly Cloudy" },
+  { code: 0x02, icon: "cloud", name: "Cloud" },
+  { code: 0x03, icon: "sun-rain-cloud", name: "Partly Cloudy with Rain" },
+  { code: 0x04, icon: "lightning-rain-cloud", name: "Thunderstorm" },
+  { code: 0x05, icon: "lightning-snow-cloud", name: "Thunderstorm with Snow" },
+  { code: 0x06, icon: "rain-snow-cloud", name: "Snow and Rain" },
+  { code: 0x07, icon: "rain-3", name: "Light Rain" },
+  { code: 0x08, icon: "rain-4", name: "Rain" },
+  { code: 0x0C, icon: "rain-5", name: "Downpour" },
+  { code: 0x09, icon: "rain-5-alt", name: "Heavy Rain" },
+  { code: 0x0A, icon: "rain-6", name: "Heavy Downpour" },
+  { code: 0x0D, icon: "sun-snow-cloud", name: "Partly Cloudy with Snow"},
+  { code: 0x0E, icon: "snow-1", name: "Light Snow" },
+  { code: 0x0F, icon: "snow-2", name: "Snow" },
+  { code: 0x10, icon: "snow-3", name: "Heavy Snow" },
+  { code: 0x11, icon: "snow-4", name: "Very Heavy Snow" },
+  { code: 0x12, icon: "fog", name: "Fog" },
+  { code: 0x13, icon: "hail", name: "Hail" },
+  { code: 0x14, icon: "blowing-dust", name: "Blowing Dust" },
+  { code: 0x1D, icon: "floating-dust", name: "Floating Dust" },
+  { code: 0x1F, icon: "tornado", name: "Tornado" },
+  { code: 0x35, icon: "haze", name: "Haze" },
+];
 
 export interface ForecastDay {
   high: number;
   low: number;
   text: string;
-  icon: WeatherIcon;
+  icon: number;
 }
 
 export interface Alarm {
