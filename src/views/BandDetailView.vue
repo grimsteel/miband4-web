@@ -16,6 +16,7 @@
       <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0">
         <Alarms :alarms="currentBand?.alarms" :loading="alarmsLoading" @save="saveAlarm" />
         <Weather :loading="weatherLoading" @save="saveWeather" />
+        <FindMyBand :loading="findMyBandLoading" @find-band="findMyBand" />
       </div>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">System</h2>
@@ -34,7 +35,7 @@
         <IconCheck class="w-5 h-5" />
         <span class="sr-only">Check icon</span>
       </div>
-      <div class="ml-3 text-sm font-normal">Saved successfully</div>
+      <div class="ml-3 text-sm font-normal">Operation completed successfully</div>
       <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" data-dismiss-target="#save-toast" aria-label="Close">
           <span class="sr-only">Close</span>
           <IconClose class="w-5 h-5" />
@@ -48,7 +49,7 @@
   import { initDismisses } from "flowbite";
   import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, webBluetoothSupported } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
@@ -65,6 +66,7 @@
   import type { Alarm, Band, IdleAlertsConfig, WeatherData } from "../types";
   import Alarms from "../components/band-detail/Alarms.vue";
   import Weather from "../components/band-detail/Weather.vue";
+  import FindMyBand from "../components/band-detail/FindMyBand.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -102,6 +104,7 @@
   const idleAlertsLoading = ref(false);
   const alarmsLoading = ref(true);
   const weatherLoading = ref(false);
+  const findMyBandLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
@@ -240,6 +243,13 @@
     weatherLoading.value = true;
     await setWeather(currentDevice.value, data);
     weatherLoading.value = false;
+    showToast();
+  }
+  async function findMyBand() {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    findMyBandLoading.value = true;
+    await sendAlert(currentDevice.value);
+    findMyBandLoading.value = false;
     showToast();
   }
 

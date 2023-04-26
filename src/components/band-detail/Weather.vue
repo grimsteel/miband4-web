@@ -7,7 +7,7 @@
         <span class="sr-only">Expand</span>
       </button>
     </div>
-    <form @submit="saveWeather" class="max-w-md font-medium text-gray-900 dark:text-white mt-3" v-show="expanded">
+    <form @submit.prevent="saveWeather" class="max-w-md font-medium text-gray-900 dark:text-white mt-3" v-show="expanded">
       <div class="mb-3">
         <label for="input-city" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">City</label>
         <input type="text" id="input-city" v-model="city" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-amber-500 dark:focus:border-amber-500" required>

@@ -31,9 +31,9 @@ This project is based off of [Satkar Dhakal's miband4](https://github.com/satcar
 | Music | ❌ | No practical purpose<sup>1</sup> |
 | Goal Configuration | ✅ | Write-only |
 | Band Time | ✅ | Read and write |
-| Weather | 🕑 | Set manually or from the internet |
+| Weather | ✅ | Set manually or from the internet |
 | Band Display | ❌ | Write-only |
-| Find My Band | ❌ | Makes the band vibrate |
+| Find My Band | ✅ | Makes the band vibrate |
 | General Configuration<sup>2</sup> | ❌ | Write-only |
 
 <sup>1</sup> Websites can't access what music you're playing, so you can only set what the band's music screen displays manually and see when the buttons are tapped.
@@ -85,3 +85,12 @@ When a user tries to open a device, we check to see if any of the devices return
 
 * `BluetoothDevice` objects are not structured cloneable. This means that we can't put them in IDB.
 * Bluetooth Device IDs are randomly generated for every authentication session. This means that we can't reliably identify a device based on its device ID.
+* TONS of errors can be encountered when connecting to devices. Reauthorization is the most reliable way 😑
+
+## Bugs you should star:
+
+* [Paired devices always created as BT Classic, but could be BLE](https://crbug.com/630581)
+* [Implement watchAdvertisments](https://crbug.com/654897)
+* [Get permitted devices](https://crbug.com/577953)
+* [Implement Persistent Web Bluetooth Permissions](https://crbug.com/974879)
+* [Bluetooth Device is no longer in range](https://crbug.com/1173186)

@@ -1,4 +1,5 @@
-import type { ActivityItem, Alarm, ForecastDay, StoredActivityItem, Time, WeatherData } from "./types";
+import { DisplayItem, type ActivityItem, type Alarm, type ForecastDay, type StoredActivityItem, type Time, type WeatherData, type BandLockPin } from "./types";
+import { enumKeys } from "./utils";
 
 /**
  * This class is used to store the services, characteristics and descriptors in a cache.
@@ -29,7 +30,7 @@ export class BluetoothDeviceWrapper {
     try {
       return await this.fetchService(name);
     } catch (e) {
-      if ((e as Error).message?.includes("connect")) {
+      if ((e as Error).message?.includes("connect")) { // this error message happens when the browser thinks the device is connected but it's not. It realizes this when attempting to fetch the service
         await this.connectIfNeeded(true);
         return await this.fetchService(name);
       } else throw e;
@@ -59,6 +60,11 @@ export class BluetoothDeviceWrapper {
         await this.device.gatt.connect();
         this.invalidateCache();
       } catch (e) {
+        /* Happens when the browser forgets that the device is in range. Can be fixed in 3 ways:
+        1. Initiate a scan from bluetooth-internals and connect/disconnect
+        2. Get the device again from requestDevice
+        3. Call watchAdvertisements on the device (this is what we do here. it's slow but it doesn't require user interaction)
+        https://crbug.com/1173186 */
         if ((e as Error).message?.includes("in range") && "watchAdvertisements" in this.device) {
           await connectAfterAdvertisment(this.device);
           this.invalidateCache();
@@ -86,7 +92,7 @@ if (!("BluetoothUUID" in window)) (window as Window & typeof globalThis & { Blue
 const services = {
   band1: BluetoothUUID.getService(0xfee0),
   band2: BluetoothUUID.getService(0xfee1),
-  alert: BluetoothUUID.getService(0x1811),
+  alert: BluetoothUUID.getService("immediate_alert"),
   deviceInfo: BluetoothUUID.getService("device_information")
 };
 
@@ -104,6 +110,7 @@ const characteristics = {
   fetch: "00000004-0000-3512-2118-0009af100700",
   configuration: "00000003-0000-3512-2118-0009af100700",
   currentTime: BluetoothUUID.getCharacteristic("current_time"),
+  alertLevel: BluetoothUUID.getCharacteristic("alert_level")
 };
 
 const oneMinute = 60 * 1000;
@@ -436,9 +443,9 @@ export async function setGoalNotifications(device: BluetoothDeviceWrapper, goalN
 /** Set the daily step goal */
 export async function setActivityGoal(device: BluetoothDeviceWrapper, steps: number) {
   await device.connectIfNeeded();
-  const charConfig = await device.getCharacteristic(services.band1, characteristics.settings);
+  const charUserSettings = await device.getCharacteristic(services.band1, characteristics.settings);
   const payload = new Uint8Array([0x10, 0x00, 0x00, steps, steps >> 8, 0x00, 0x00]);
-  await charConfig.writeValueWithResponse(payload); // This one needs a response. Not sure why.
+  await charUserSettings.writeValueWithResponse(payload); // This one needs a response. Not sure why.
 }
 
 /** Get the band's current system time */
@@ -532,4 +539,57 @@ export async function setWeather(device: BluetoothDeviceWrapper, { city, airInde
   await writeChunked(device, 0x01, airIndexPayload);
   await writeChunked(device, 0x01, currentTempPayload);
   await writeChunked(device, 0x01, forecastPayload);
+}
+
+export async function sendAlert(device: BluetoothDeviceWrapper) {
+  await device.connectIfNeeded();
+  const charAlertLevel = await device.getCharacteristic(services.alert, characteristics.alertLevel);
+  await charAlertLevel.writeValueWithoutResponse(new Uint8Array([0x03]));
+}
+
+export async function setBandDisplay(device: BluetoothDeviceWrapper, items: Set<DisplayItem>) {
+  await device.connectIfNeeded();
+  const allItems = enumKeys(DisplayItem).map(key => DisplayItem[key]);
+  const excludedItems = allItems.filter(item => !items.has(item));
+  const includedItems = [0x12, ...items]; // 0x12 is the home screen
+  const includedBytes = includedItems.flatMap((item, i) => [i, 0x00, 0xff, item]); // byte 1 is the index, byte 2 whether it's enabled, byte 3 is a divider, byte 4 is the item
+  const excludedBytes = excludedItems.flatMap((item, i) => [i + includedItems.length, 0x01, 0xff, item]); // 0x01 = exclude
+
+  const payload = new Uint8Array([0x1e, ...includedBytes, ...excludedBytes]);
+  await writeChunked(device, 0x02, payload);
+}
+
+export async function setBandLocation(device: BluetoothDeviceWrapper, location: "left" | "right") {
+  await device.connectIfNeeded();
+  const charUserSettings = await device.getCharacteristic(services.band1, characteristics.settings);
+  const payload = new Uint8Array([0x20, 0x00, 0x00, location === "left" ? 0x02 : 0x82]);
+  await charUserSettings.writeValueWithResponse(payload);
+}
+
+/**
+ * Configure the schedule for "Lift Wrist to View Info"
+ * @param enabled Whether this feature is enabled
+ * @param startTime When this feature will be activated (set this and {@link endTime} to 00:00 for all day)
+ * @param endTime When this feature will be deactivated (set this and {@link startTime} to 00:00 for all day)
+ */
+export async function scheduleLiftWrist(device: BluetoothDeviceWrapper, enabled: boolean, startTime: Time, endTime: Time) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const payload = new Uint8Array([0x06, 0x05, 0x00, enabled ? 0x01 : 0x00, startTime.hour, startTime.minute, endTime.hour, endTime.minute]);
+  await charConfig.writeValueWithoutResponse(payload);
+}
+
+export async function setLiftWristResponseSpeed(device: BluetoothDeviceWrapper, responseSpeed: "normal" | "sensitive") {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const payload = new Uint8Array([0x06, 0x23, 0x00, responseSpeed === "normal" ? 0x00 : 0x01]);
+  await charConfig.writeValueWithoutResponse(payload);
+}
+
+export async function setBandLock(device: BluetoothDeviceWrapper, enabled: boolean, pin: BandLockPin) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const encodedPin = pin.map(digit => 0x30 | digit); // 0x30 is the offset for digits in ASCII (so character code 0x31 is 1)
+  const payload = new Uint8Array([0x06, 0x21, 0x00, enabled ? 0x01 : 0x00, ...encodedPin, 0x00]);
+  await charConfig.writeValueWithoutResponse(payload);
 }

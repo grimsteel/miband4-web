@@ -51,9 +51,9 @@
 
 <script setup lang="ts">
   import ButtonWithLoader from "../ButtonWithLoader.vue";
-  import { Weekday, type Alarm, type Time, enumKeys } from "../../types";
+  import { Weekday, type Alarm, type Time } from "../../types";
   import { computed, ref, toRaw } from "vue";
-  import { getRepetitionDescriptiveText } from "../../utils";
+  import { getRepetitionDescriptiveText, enumKeys } from "../../utils";
   import TimeInput from "../TimeInput.vue";
   import Toggle from "../Toggle.vue";
   import IconClose from "../icons/IconClose.vue";

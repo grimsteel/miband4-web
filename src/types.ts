@@ -31,6 +31,16 @@ export enum Weekday {
   Everyday = 7
 }
 
+export enum DisplayItem {
+  Status = 0x01,
+  HeartRate = 0x02,
+  Workout = 0x03,
+  Weather = 0x04,
+  MiHome = 0x05,
+  Notifications = 0x06,
+  More = 0x07
+}
+
 export const WeatherIcons = [
   { code: 0x00, icon: "sun", name: "Sun" },
   { code: 0x01, icon: "sun-cloud", name: "Partly Cloudy" },
@@ -73,6 +83,8 @@ export interface Alarm {
   days: Set<Weekday>;
 }
 
+export type BandLockPin = [1 | 2 | 3 | 4, 1 | 2 | 3 | 4, 1 | 2 | 3 | 4, 1 | 2 | 3 | 4];
+
 export interface Band {
   id: number;
   nickname: string;
@@ -85,6 +97,7 @@ export interface Band {
   goalNotifications?: boolean;
   idleAlerts?: IdleAlertsConfig;
   alarms?: Alarm[];
+  display: ({ item: DisplayItem, enabled: boolean })[];
 };
 
 export interface Time {
@@ -129,7 +142,3 @@ export interface Config {
   showBetaBanner: boolean;
   distanceUnit: "km" | "miles";
 };
-
-export function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
-  return Object.keys(obj).filter(k => Number.isNaN(+k)) as K[];
-}
