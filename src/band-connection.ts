@@ -1,4 +1,4 @@
-import type { ActivityItem, Alarm, ForecastDay, StoredActivityItem, Time } from "./types";
+import type { ActivityItem, Alarm, ForecastDay, StoredActivityItem, Time, WeatherData } from "./types";
 
 /**
  * This class is used to store the services, characteristics and descriptors in a cache.
@@ -518,7 +518,7 @@ async function writeChunked(device: BluetoothDeviceWrapper, type: number, data: 
   }
 }
 
-export async function setWeather(device: BluetoothDeviceWrapper, city: string, airIndex: number, currentIcon: number, currentTemp: number, forecast: ForecastDay[]) {
+export async function setWeather(device: BluetoothDeviceWrapper, { city, airIndex, currentIcon, currentTemp, forecast } : WeatherData) {
   await device.connectIfNeeded();
   const encoder = new TextEncoder();
   const cityPayload = new Uint8Array([0x08, ...encoder.encode(city), 0x00]);

@@ -24,6 +24,7 @@ html, body, #app {
   }
   &::-webkit-scrollbar-track {
     background-color: var(--track, var(--default-track));
+    border-radius: 2px;
   }
   &::-webkit-scrollbar-thumb {
     background-color: var(--thumb, var(--default-thumb));
@@ -93,8 +94,8 @@ html, body, #app {
     --y: -96px;
   }
   &.moon {
-    --x: -96px
-    --y: -96px;;
+    --x: -96px;
+    --y: -96px;
   }
   &.moon-cloud {
     --x: -144px;

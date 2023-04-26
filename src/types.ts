@@ -33,7 +33,7 @@ export enum Weekday {
 
 export const WeatherIcons = [
   { code: 0x00, icon: "sun", name: "Sun" },
-  { code: 0x01, icon: "moon", name: "Partly Cloudy" },
+  { code: 0x01, icon: "sun-cloud", name: "Partly Cloudy" },
   { code: 0x02, icon: "cloud", name: "Cloud" },
   { code: 0x03, icon: "sun-rain-cloud", name: "Partly Cloudy with Rain" },
   { code: 0x04, icon: "lightning-rain-cloud", name: "Thunderstorm" },
@@ -56,6 +56,8 @@ export const WeatherIcons = [
   { code: 0x1F, icon: "tornado", name: "Tornado" },
   { code: 0x35, icon: "haze", name: "Haze" },
 ];
+
+export interface WeatherData { city: string, airIndex: number, currentIcon: number, currentTemp: number, forecast: ForecastDay[] };
 
 export interface ForecastDay {
   high: number;

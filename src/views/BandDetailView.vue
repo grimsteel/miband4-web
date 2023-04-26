@@ -8,14 +8,14 @@
         <Status v-bind="status" />
         <ActivityData :latest-activity-timestamp="currentBand?.latestActivityTimestamp" :loading="activityDataLoadingStatus" @fetch-data="syncActivityData" />
         <HeartRate />
-        <ActivityGoal :loading="activityGoal.loading" :activity-goal="currentBand?.activityGoal" :goal-notifications="currentBand?.goalNotifications" @save="saveActivityGoal" />
-        <IdleAlerts :loading="idleAlerts.loading" :idle-alerts="currentBand?.idleAlerts" @save="saveIdleAlerts" />
+        <ActivityGoal :loading="activityGoalLoading" :activity-goal="currentBand?.activityGoal" :goal-notifications="currentBand?.goalNotifications" @save="saveActivityGoal" />
+        <IdleAlerts :loading="idleAlertsLoading" :idle-alerts="currentBand?.idleAlerts" @save="saveIdleAlerts" />
       </div>
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">Utilities</h2>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0">
-        <Alarms :alarms="currentBand?.alarms" :loading="alarms.loading" @save="saveAlarm" />
-        <Weather />
+        <Alarms :alarms="currentBand?.alarms" :loading="alarmsLoading" @save="saveAlarm" />
+        <Weather :loading="weatherLoading" @save="saveWeather" />
       </div>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">System</h2>
@@ -48,7 +48,7 @@
   import { initDismisses } from "flowbite";
   import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, webBluetoothSupported } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, webBluetoothSupported } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
@@ -62,7 +62,7 @@
   import IconClose from "../components/icons/IconClose.vue";
   import { addActivityData, getBand } from "../local-db";
   import { useBandsStore } from "../pinia-stores";
-  import type { Alarm, Band, IdleAlertsConfig } from "../types";
+  import type { Alarm, Band, IdleAlertsConfig, WeatherData } from "../types";
   import Alarms from "../components/band-detail/Alarms.vue";
   import Weather from "../components/band-detail/Weather.vue";
 
@@ -94,19 +94,14 @@
     lastCharge: Date;
     isCharging: boolean;
   }>();
-  const activityGoal = ref<{
-    loading: boolean;
-  }>({ loading: false });
+  const activityGoalLoading = ref(false);
   const bandTime = ref<{
     time?: Date;
     loading: boolean;
   }>({ loading: false });
-  const idleAlerts = ref<{
-    loading: boolean;
-  }>({ loading: false });
-  const alarms = ref<{
-    loading: boolean;
-  }>({ loading: true });
+  const idleAlertsLoading = ref(false);
+  const alarmsLoading = ref(true);
+  const weatherLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
@@ -135,7 +130,7 @@
     batteryInfo.value = await getBatteryLevel(currentDevice.value);
     bandTime.value.time = await getCurrentTime(currentDevice.value);
     authenticated.value = true;
-    alarms.value.loading = false;
+    alarmsLoading.value = false;
   }
 
   async function onReauthorizeComplete(success: boolean, newDevice?: BluetoothDevice) {
@@ -198,20 +193,20 @@
 
   async function saveActivityGoal(steps: number, goalNotifications: boolean) {
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
-    activityGoal.value.loading = true;
+    activityGoalLoading.value = true;
     await setActivityGoal(currentDevice.value, steps);
     await setGoalNotifications(currentDevice.value, goalNotifications);
     await bandsStore.updateBandForId(currentBand.value.id, { activityGoal: steps, goalNotifications });
-    activityGoal.value.loading = false;
+    activityGoalLoading.value = false;
     showToast();
   }
 
   async function saveIdleAlerts({ enabled, startTime, endTime } : IdleAlertsConfig) {
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
-    idleAlerts.value.loading = true;
+    idleAlertsLoading.value = true;
     await setIdleAlerts(currentDevice.value, enabled, startTime, endTime);
     await bandsStore.updateBandForId(currentBand.value.id, { idleAlerts: { enabled, startTime: toRaw(startTime), endTime: toRaw(endTime) } });
-    idleAlerts.value.loading = false;
+    idleAlertsLoading.value = false;
     showToast();
   }
 
@@ -225,7 +220,7 @@
   }
   async function saveAlarm(alarm: Alarm) {
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
-    alarms.value.loading = true;
+    alarmsLoading.value = true;
     await setAlarm(currentDevice.value, alarm);
     await refreshBand();
     const currentAlarms = currentBand.value.alarms?.map(alarm => toRaw(alarm)) || [];
@@ -237,7 +232,14 @@
       ) : currentAlarms.filter(({ id }) => id !== alarm.id); // if this alarm is being deleted, remove it
     currentBand.value.alarms = newAlarms;
     await bandsStore.updateBandForId(currentBand.value.id, { alarms: newAlarms });
-    alarms.value.loading = false;
+    alarmsLoading.value = false;
+    showToast();
+  }
+  async function saveWeather(data: WeatherData) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    weatherLoading.value = true;
+    await setWeather(currentDevice.value, data);
+    weatherLoading.value = false;
     showToast();
   }
 
