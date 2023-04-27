@@ -98,6 +98,10 @@ export interface Band {
   idleAlerts?: IdleAlertsConfig;
   alarms?: Alarm[];
   display?: ({ item: DisplayItem, enabled: boolean })[];
+  bandLock?: {
+    enabled: boolean;
+    pin: BandLockPin;
+  };
 };
 
 export interface Time {

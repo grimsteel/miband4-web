@@ -2,7 +2,7 @@
   <div class="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 h-max">
     <div class="flex items-center justify-between mb-3">
       <h5 class="text-2xl font-bold tracking-tight leading-none text-gray-900 dark:text-white">{{ cardTitle }}</h5>
-      <button v-if="currentScreen === 'edit'" @click="showListScreen" type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg p-1.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
+      <button v-if="currentScreen === 'edit'" @click="showListScreen" type="button" data-test='cancel' class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg p-1.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white">
         <IconClose class="w-4 h-4" />
         <span class="sr-only">Cancel</span>
       </button>
@@ -39,11 +39,11 @@
         <p v-if="selectedWeekdays.size < 1" class="text-sm text-red-600 dark:text-red-500 mt-2" data-test="no-weekdays-selected">You must select at least one weekday.</p>
       </div>
       <div class="mb-4 h-6">
-        <Toggle v-model="alarmEnabled" text="Enabled" />
+        <Toggle v-model="alarmEnabled" text="Enabled" data-test="enabled" />
       </div>
       <div>
-        <ButtonWithLoader type="button" :loading="false" text="Save" @click="saveAlarm" />
-        <ButtonWithLoader type="button" :loading="false" text="Delete" v-if="currentAlarm" classes="bg-red-700 hover:bg-red-800 focus:ring-red-300 dark:bg-red-700 dark:hover:bg-red-800 dark:focus:ring-red-900" @click="deleteAlarm" />
+        <ButtonWithLoader type="button" :loading="false" text="Save" @click="saveAlarm" data-test="save" />
+        <ButtonWithLoader type="button" :loading="false" text="Delete" v-if="currentAlarm" data-text="delete" classes="bg-red-700 hover:bg-red-800 focus:ring-red-300 dark:bg-red-700 dark:hover:bg-red-800 dark:focus:ring-red-900" @click="deleteAlarm" />
       </div>
     </template>
   </div>

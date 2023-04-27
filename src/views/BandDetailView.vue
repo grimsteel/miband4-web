@@ -17,6 +17,7 @@
         <Alarms :alarms="currentBand?.alarms" :loading="alarmsLoading" @save="saveAlarm" />
         <Weather :loading="weatherLoading" @save="saveWeather" />
         <FindMyBand :loading="findMyBandLoading" @find-band="findMyBand" />
+        <BandLock :loading="bandLockLoading" :band-lock="currentBand?.bandLock" />
       </div>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">System</h2>
@@ -69,6 +70,7 @@
   import Weather from "../components/band-detail/Weather.vue";
   import FindMyBand from "../components/band-detail/FindMyBand.vue";
   import BandDisplay from "../components/band-detail/BandDisplay.vue";
+  import BandLock from "../components/band-detail/BandLock.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -108,6 +110,7 @@
   const weatherLoading = ref(false);
   const findMyBandLoading = ref(false);
   const bandDisplayLoading = ref(false);
+  const bandLockLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
