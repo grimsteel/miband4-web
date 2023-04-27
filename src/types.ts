@@ -97,7 +97,7 @@ export interface Band {
   goalNotifications?: boolean;
   idleAlerts?: IdleAlertsConfig;
   alarms?: Alarm[];
-  display: ({ item: DisplayItem, enabled: boolean })[];
+  display?: ({ item: DisplayItem, enabled: boolean })[];
 };
 
 export interface Time {

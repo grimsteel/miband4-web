@@ -25,6 +25,7 @@
         <DeviceInfo v-bind="deviceInfo" />
         <BatteryInfo v-bind="batteryInfo" />
         <BandTime v-bind="bandTime" @sync="syncBandTime" />
+        <BandDisplay :loading="bandDisplayLoading" :band-display="currentBand?.display" @save="saveDisplayItems" />
       </div>
     </section>
     <TheNotSupportedModal @before-close="currentModal = null" v-if="currentModal === 'not-supported'" />
@@ -49,7 +50,7 @@
   import { initDismisses } from "flowbite";
   import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock, setBandDisplay } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
@@ -67,6 +68,7 @@
   import Alarms from "../components/band-detail/Alarms.vue";
   import Weather from "../components/band-detail/Weather.vue";
   import FindMyBand from "../components/band-detail/FindMyBand.vue";
+  import BandDisplay from "../components/band-detail/BandDisplay.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -105,6 +107,7 @@
   const alarmsLoading = ref(true);
   const weatherLoading = ref(false);
   const findMyBandLoading = ref(false);
+  const bandDisplayLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
@@ -250,6 +253,15 @@
     findMyBandLoading.value = true;
     await sendAlert(currentDevice.value);
     findMyBandLoading.value = false;
+    showToast();
+  }
+  async function saveDisplayItems(displayItems: Exclude<Band["display"], undefined>) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    bandDisplayLoading.value = true;
+    const itemsSet = new Set(displayItems.filter(item => item.enabled).map(item => item.item));
+    await setBandDisplay(currentDevice.value, itemsSet);
+    await bandsStore.updateBandForId(currentBand.value.id, { display: toRaw(displayItems) });
+    bandDisplayLoading.value = false;
     showToast();
   }
 

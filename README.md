@@ -32,7 +32,7 @@ This project is based off of [Satkar Dhakal's miband4](https://github.com/satcar
 | Goal Configuration | ✅ | Write-only |
 | Band Time | ✅ | Read and write |
 | Weather | ✅ | Set manually or from the internet |
-| Band Display | ❌ | Write-only |
+| Band Display | ✅ | Write-only |
 | Find My Band | ✅ | Makes the band vibrate |
 | General Configuration<sup>2</sup> | ❌ | Write-only |
 
