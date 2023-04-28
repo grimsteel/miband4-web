@@ -27,7 +27,7 @@
         </div>
       </div>
       <div class="flex flex-col pt-2">
-        <p class="font-normal text-gray-700 dark:text-gray-400 text-sm">The band may randomly disconnect while fetching data. If this happens, turn Bluetooth off and on again. Then, connect and disconnect from the band using your browser's bluetooth internals page.</p>
+        <p class="font-normal text-gray-700 dark:text-gray-400 text-sm">The band may randomly disconnect while fetching data. <router-link to="/faq" class="text-blue-600 hover:underline dark:text-blue-500">Learn More</router-link>.</p>
       </div>
     </dl>
   </div>

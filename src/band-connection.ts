@@ -9,12 +9,14 @@ export class BluetoothDeviceWrapper {
   chars: { [key: string]: BluetoothRemoteGATTCharacteristic };
   descriptors: { [key: string]: BluetoothRemoteGATTDescriptor };
   device: BluetoothDevice;
+  abortControllers: AbortController[];
 
   constructor(device: BluetoothDevice) {
     this.services = {};
     this.chars = {};
     this.descriptors = {};
     this.device = device;
+    this.abortControllers = [];
   }
 
   async fetchService(name: number | string) {
@@ -66,7 +68,7 @@ export class BluetoothDeviceWrapper {
         3. Call watchAdvertisements on the device (this is what we do here. it's slow but it doesn't require user interaction)
         https://crbug.com/1173186 */
         if ((e as Error).message?.includes("in range") && "watchAdvertisements" in this.device) {
-          await connectAfterAdvertisment(this.device);
+          await connectAfterAdvertisment(this);
           this.invalidateCache();
         } else throw e;
       }
@@ -81,6 +83,7 @@ export class BluetoothDeviceWrapper {
   
   disconnect() {
     if (this.device.gatt?.connected) this.device.gatt.disconnect();
+    this.abortControllers.forEach(controller => controller.abort("disconnecting"));
   }
 }
 
@@ -132,19 +135,26 @@ async function encryptWithKey(key: CryptoKey, value: ArrayBuffer) {
 }
 
 /** Wait for an advertisment then connect */
-async function connectAfterAdvertisment(bluetoothDevice: BluetoothDevice) {
+async function connectAfterAdvertisment(bluetoothDeviceWrapper: BluetoothDeviceWrapper) {
   const abortController = new AbortController();
-  await bluetoothDevice.watchAdvertisements({ signal: abortController.signal });
+  await bluetoothDeviceWrapper.device.watchAdvertisements({ signal: abortController.signal });
+  bluetoothDeviceWrapper.abortControllers.push(abortController);
   return await new Promise((resolve, reject) => {
-    bluetoothDevice.addEventListener("advertisementreceived", async () => {
-      await bluetoothDevice.gatt?.connect();
+    const advertismentListener = async () => {
+      await bluetoothDeviceWrapper.device.gatt?.connect();
       abortController.abort();
       resolve("Connected");
-    });
+    }
+    bluetoothDeviceWrapper.device.addEventListener("advertisementreceived", advertismentListener);
     setTimeout(() => {
       abortController.abort();
       reject("Timeout");
     }, 10000);
+    abortController.signal.addEventListener("abort", () => {
+      bluetoothDeviceWrapper.abortControllers = bluetoothDeviceWrapper.abortControllers.filter(el => el !== abortController);
+      bluetoothDeviceWrapper.device.removeEventListener("advertisementreceived", advertismentListener);
+      if (abortController.signal.reason === "disconnecting") reject("Disconnected");
+    });
   });
 }
 

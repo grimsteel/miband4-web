@@ -4,10 +4,7 @@
     <form @submit.prevent="onFormSubmit">
       <dl class="max-w-md text-gray-900 divide-y divide-gray-200 dark:text-white dark:divide-gray-700">
         <div class="flex flex-col pb-2">
-          <p class="font-normal text-gray-700 dark:text-gray-400 text-sm">Sitting for too long is harmful for your health. It will increase the risk of various diseases such as diabetes and neck or back problems.</p>
-        </div>
-        <div class="flex flex-col py-2">
-          <Toggle v-model="idleAlertsConfig.enabled" text="Idle Alerts" />
+          <Toggle v-model="idleAlertsConfig.enabled" text="Enabled" />
         </div>
         <div class="flex flex-col py-2" v-show="idleAlertsConfig.enabled">
           <TimeInput v-model="idleAlertsConfig.startTime" text="Start Time" inputId="idle-alerts-start" class="mb-3"/>

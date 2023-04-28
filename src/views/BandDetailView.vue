@@ -17,7 +17,7 @@
         <Alarms :alarms="currentBand?.alarms" :loading="alarmsLoading" @save="saveAlarm" />
         <Weather :loading="weatherLoading" @save="saveWeather" />
         <FindMyBand :loading="findMyBandLoading" @find-band="findMyBand" />
-        <BandLock :loading="bandLockLoading" :band-lock="currentBand?.bandLock" />
+        <BandLock :loading="bandLockLoading" :band-lock="currentBand?.bandLock" @save="saveBandLock" />
       </div>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">System</h2>
@@ -27,6 +27,7 @@
         <BatteryInfo v-bind="batteryInfo" />
         <BandTime v-bind="bandTime" @sync="syncBandTime" />
         <BandDisplay :loading="bandDisplayLoading" :band-display="currentBand?.display" @save="saveDisplayItems" />
+        <LiftWrist :loading="liftWristLoading" :lift-wrist="currentBand?.liftWrist" @save="saveLiftWrist" />
       </div>
     </section>
     <TheNotSupportedModal @before-close="currentModal = null" v-if="currentModal === 'not-supported'" />
@@ -51,7 +52,7 @@
   import { initDismisses } from "flowbite";
   import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock, setBandDisplay } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock, setBandDisplay, scheduleLiftWrist, setLiftWristResponseSpeed } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
@@ -71,6 +72,7 @@
   import FindMyBand from "../components/band-detail/FindMyBand.vue";
   import BandDisplay from "../components/band-detail/BandDisplay.vue";
   import BandLock from "../components/band-detail/BandLock.vue";
+  import LiftWrist from "../components/band-detail/LiftWrist.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -111,6 +113,7 @@
   const findMyBandLoading = ref(false);
   const bandDisplayLoading = ref(false);
   const bandLockLoading = ref(false);
+  const liftWristLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
   const route = useRoute();
   const router = useRouter();
@@ -267,6 +270,23 @@
     bandDisplayLoading.value = false;
     showToast();
   }
+  async function saveBandLock(bandLock: Exclude<Band["bandLock"], undefined>) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    bandLockLoading.value = true;
+    await setBandLock(currentDevice.value, bandLock.enabled, bandLock.pin);
+    await bandsStore.updateBandForId(currentBand.value.id, { bandLock: toRaw(bandLock) });
+    bandLockLoading.value = false;
+    showToast();
+  }
+  async function saveLiftWrist(liftWrist: Exclude<Band["liftWrist"], undefined>) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    liftWristLoading.value = true;
+    await scheduleLiftWrist(currentDevice.value, liftWrist.enabled, liftWrist.startTime, liftWrist.endTime);
+    await setLiftWristResponseSpeed(currentDevice.value, liftWrist.responseSpeed);
+    await bandsStore.updateBandForId(currentBand.value.id, { liftWrist: toRaw(liftWrist) });
+    liftWristLoading.value = false;
+    showToast();
+  }
 
   async function refreshBand() {
     const bandId = route.params.id;
@@ -302,6 +322,6 @@
 
   onBeforeRouteLeave(() => {
     currentModal.value = null;
-    if (currentDevice.value?.device.gatt?.connected) currentDevice.value.device.gatt.disconnect();
+    currentDevice.value?.disconnect();
   });
 </script>

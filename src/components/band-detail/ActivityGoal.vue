@@ -34,17 +34,20 @@
     loading: boolean;
   }>();
 
-  const activityGoal = ref(props.activityGoal);
-  const goalNotifications = ref(props.goalNotifications);
+  const defaultActivityGoal = 10000;
+  const defaultGoalNotifications = true;
+
+  const activityGoal = ref(props.activityGoal ?? defaultActivityGoal);
+  const goalNotifications = ref(props.goalNotifications ?? defaultGoalNotifications);
 
   watch(
     () => props.activityGoal,
-    aG => activityGoal.value = aG
+    aG => activityGoal.value = aG ?? defaultActivityGoal
   );
 
   watch(
     () => props.goalNotifications,
-    gN => goalNotifications.value = gN
+    gN => goalNotifications.value = gN ?? defaultGoalNotifications
   );
 
   const emit = defineEmits<{
@@ -52,7 +55,6 @@
   }>();
 
   function onFormSubmit() {
-    if (!activityGoal.value || goalNotifications.value === undefined) return;
     emit("save", activityGoal.value, goalNotifications.value);
   }
 </script>

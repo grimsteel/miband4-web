@@ -102,6 +102,12 @@ export interface Band {
     enabled: boolean;
     pin: BandLockPin;
   };
+  liftWrist?: {
+    enabled: boolean;
+    startTime: Time;
+    endTime: Time;
+    responseSpeed: "normal" | "sensitive";
+  }
 };
 
 export interface Time {
