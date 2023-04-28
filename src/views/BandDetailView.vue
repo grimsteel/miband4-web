@@ -1,6 +1,6 @@
 <template>
   <main class="grow bg-gray-50 dark:bg-gray-900">
-    <section class="flex h-full flex-col py-8 px-4 mx-2 max-w-full">
+    <section class="flex h-full flex-col py-8 px-4 mx-2 max-w-full" v-if="currentLoadingState === 'ready'">
       <h1 class="mb-6 text-4xl tracking-tight font-bold text-gray-900 dark:text-white">{{ currentBand?.nickname || "Loading band..." }}</h1>
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">Fitness</h2>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
@@ -29,6 +29,9 @@
         <BandDisplay :loading="bandDisplayLoading" :band-display="currentBand?.display" @save="saveDisplayItems" />
         <LiftWrist :loading="liftWristLoading" :lift-wrist="currentBand?.liftWrist" @save="saveLiftWrist" />
       </div>
+    </section>
+    <section class="flex h-full w-full items-center justify-center" v-else>
+      <BandLoadingStepper :current-state="currentLoadingState" />
     </section>
     <TheNotSupportedModal @before-close="currentModal = null" v-if="currentModal === 'not-supported'" />
     <ReauthorizeModal @before-close="onReauthorizeComplete" v-if="currentModal === 'reauthorize'" :target-device="currentBand" />
@@ -66,13 +69,14 @@
   import IconClose from "../components/icons/IconClose.vue";
   import { addActivityData, getBand } from "../local-db";
   import { useBandsStore } from "../pinia-stores";
-  import type { Alarm, Band, IdleAlertsConfig, WeatherData } from "../types";
+  import type { Alarm, Band, IdleAlertsConfig, WeatherData, BandLoadingStates } from "../types";
   import Alarms from "../components/band-detail/Alarms.vue";
   import Weather from "../components/band-detail/Weather.vue";
   import FindMyBand from "../components/band-detail/FindMyBand.vue";
   import BandDisplay from "../components/band-detail/BandDisplay.vue";
   import BandLock from "../components/band-detail/BandLock.vue";
   import LiftWrist from "../components/band-detail/LiftWrist.vue";
+  import BandLoadingStepper from "../components/BandLoadingStepper.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -115,6 +119,7 @@
   const bandLockLoading = ref(false);
   const liftWristLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
+  const currentLoadingState = ref<BandLoadingStates>("reauthorizing");
   const route = useRoute();
   const router = useRouter();
   const bandNotFound = () => {
@@ -130,9 +135,14 @@
   async function showDetails() {
     if (!currentBand.value || !currentDevice.value) return;
     const authKey = await authKeyStringToKey(currentBand.value.authKey);
-    // TODO: better loading indicators
     try {
-      await authenticate(currentDevice.value!, authKey);
+      await authenticate(currentDevice.value!, authKey, {
+        onSearching: () => currentLoadingState.value = "searching",
+        onConnecting: () => currentLoadingState.value = "connecting",
+        onGettingService: () => currentLoadingState.value = "getting-service",
+        onAuthenticating: () => currentLoadingState.value = "authenticating"
+      });
+      currentLoadingState.value = "ready";
     } catch (err: any) {
       if (err === "Incorrect auth key") currentModal.value = "incorrect-auth-key";
       throw err;

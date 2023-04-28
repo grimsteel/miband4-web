@@ -55,20 +55,30 @@ export class BluetoothDeviceWrapper {
     return descriptor;
   }
 
-  async connectIfNeeded(force=false) {
+  async connectIfNeeded(force=false, listeners?: {
+    onSearching?: () => void;
+    onConnecting?: () => void;
+  }) {
     if (!this.device.gatt) throw new Error("Cannot access gatt");
     if (force || !this.device.gatt.connected) {
+      let timeout;
       try {
+        listeners?.onSearching?.();
+        // After 50 MS, if we're still connecting, that means it probably worked and we can move from "searching" to "connecting"
+        if (listeners?.onConnecting) timeout = setTimeout(() => listeners?.onConnecting?.(), 50);
         await this.device.gatt.connect();
         this.invalidateCache();
       } catch (e) {
+        clearTimeout(timeout); // it didn't work so cancel the timeout
         /* Happens when the browser forgets that the device is in range. Can be fixed in 3 ways:
         1. Initiate a scan from bluetooth-internals and connect/disconnect
         2. Get the device again from requestDevice
         3. Call watchAdvertisements on the device (this is what we do here. it's slow but it doesn't require user interaction)
         https://crbug.com/1173186 */
         if ((e as Error).message?.includes("in range") && "watchAdvertisements" in this.device) {
-          await connectAfterAdvertisment(this);
+          await connectAfterAdvertisment(this, {
+            onConnecting: listeners?.onConnecting // once we found the device from an advertisment, call onConnecting
+          });
           this.invalidateCache();
         } else throw e;
       }
@@ -135,12 +145,15 @@ async function encryptWithKey(key: CryptoKey, value: ArrayBuffer) {
 }
 
 /** Wait for an advertisment then connect */
-async function connectAfterAdvertisment(bluetoothDeviceWrapper: BluetoothDeviceWrapper) {
+async function connectAfterAdvertisment(bluetoothDeviceWrapper: BluetoothDeviceWrapper, listeners?: {
+  onConnecting?: () => void;
+}) {
   const abortController = new AbortController();
   await bluetoothDeviceWrapper.device.watchAdvertisements({ signal: abortController.signal });
   bluetoothDeviceWrapper.abortControllers.push(abortController);
   return await new Promise((resolve, reject) => {
     const advertismentListener = async () => {
+      listeners?.onConnecting?.();
       await bluetoothDeviceWrapper.device.gatt?.connect();
       abortController.abort();
       resolve("Connected");
@@ -203,11 +216,19 @@ export async function getBandMac(device: BluetoothDevice, callbacks?: {
 }
 
 /** Authenticate to the band by encrypting a random number it sends with the authKey */
-export async function authenticate(device: BluetoothDeviceWrapper, authKey: CryptoKey) {
-  await device.connectIfNeeded();
+export async function authenticate(device: BluetoothDeviceWrapper, authKey: CryptoKey, listeners?: {
+  onSearching?: () => void;
+  onConnecting?: () => void;
+  onGettingService?: () => void;
+  onAuthenticating?: () => void;
+}) {
+  await device.connectIfNeeded(false, {
+    onSearching: listeners?.onSearching,
+    onConnecting: listeners?.onConnecting
+  });
+  listeners?.onGettingService?.();
   const authChar = await device.getCharacteristic(services.band2, characteristics.auth);
-  //const encrypted = await crypto.subtle.encrypt({ name: "AES-CBC", iv: new Uint8Array(16) }, authKey, new Uint8Array(16));
-  //await characteristic.writeValue(new Uint8Array(encrypted));
+  listeners?.onAuthenticating?.();
   return await new Promise(async (resolve, reject) => {
     let resolved = false;
     const listener = async (event: Event) => {

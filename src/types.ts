@@ -152,3 +152,5 @@ export interface Config {
   showBetaBanner: boolean;
   distanceUnit: "km" | "miles";
 };
+
+export type BandLoadingStates = "reauthorizing" | "searching" | "connecting" | "getting-service" | "authenticating" | "ready";
