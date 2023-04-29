@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 h-max">
-    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Band Lock</h5>
+    <h2 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Band Lock</h2>
     <form @submit.prevent="onFormSubmit" class="max-w-md text-gray-900 divide-y divide-gray-200 dark:text-white dark:divide-gray-700">
       <div class="flex flex-col py-2">
         <Toggle v-model="bandLockConfig.enabled" text="Enabled" />

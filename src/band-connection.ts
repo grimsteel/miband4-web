@@ -624,3 +624,19 @@ export async function setBandLock(device: BluetoothDeviceWrapper, enabled: boole
   const payload = new Uint8Array([0x06, 0x21, 0x00, enabled ? 0x01 : 0x00, ...encodedPin, 0x00]);
   await charConfig.writeValueWithoutResponse(payload);
 }
+
+export async function setNightMode(device: BluetoothDeviceWrapper, state: "off" | "scheduled" | "sunrise-sunset", startTime: Time, endTime: Time) {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const payload = state === "scheduled" ?
+    new Uint8Array([0x1a, 0x01, startTime.hour, startTime.minute, endTime.hour, endTime.minute]) :
+    new Uint8Array([0x1a, state === "off" ? 0x00 : 0x02]);
+  await charConfig.writeValueWithoutResponse(payload);
+}
+
+export async function setDistanceUnit(device: BluetoothDeviceWrapper, unit: "miles" | "km") {
+  await device.connectIfNeeded();
+  const charConfig = await device.getCharacteristic(services.band1, characteristics.configuration);
+  const payload = new Uint8Array([0x06, 0x03, 0x00, unit === "km" ? 0x00 : 0x01]);
+  await charConfig.writeValueWithoutResponse(payload);
+}

@@ -107,7 +107,14 @@ export interface Band {
     startTime: Time;
     endTime: Time;
     responseSpeed: "normal" | "sensitive";
-  }
+  };
+  nightMode?: {
+    state: "off" | "scheduled" | "sunrise-sunset";
+    startTime: Time;
+    endTime: Time;
+  };
+  bandLocation?: "left" | "right";
+  distanceUnit?: "km" | "miles";
 };
 
 export interface Time {
@@ -119,9 +126,6 @@ export interface MiBandDB extends DBSchema {
   config: {
     key: "showBetaBanner";
     value: boolean;
-  } | {
-    key: "distanceUnit";
-    value: "km" | "miles";
   };
   bands: {
     key: number;
@@ -150,7 +154,6 @@ export type UnsavedBand = Pick<Band, "authKey" | "macAddress" | "nickname" | "de
 
 export interface Config {
   showBetaBanner: boolean;
-  distanceUnit: "km" | "miles";
 };
 
 export type BandLoadingStates = "reauthorizing" | "searching" | "connecting" | "getting-service" | "authenticating" | "ready";

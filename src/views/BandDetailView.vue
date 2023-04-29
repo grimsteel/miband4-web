@@ -5,7 +5,7 @@
       <h2 class="text-2xl tracking-tight font-bold text-gray-900 dark:text-white">Fitness</h2>
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0 mb-3">
-        <Status v-bind="status" />
+        <Status v-bind="status" :distance-unit="currentBand?.distanceUnit" />
         <ActivityData :latest-activity-timestamp="currentBand?.latestActivityTimestamp" :loading="activityDataLoadingStatus" @fetch-data="syncActivityData" />
         <HeartRate />
         <ActivityGoal :loading="activityGoalLoading" :activity-goal="currentBand?.activityGoal" :goal-notifications="currentBand?.goalNotifications" @save="saveActivityGoal" />
@@ -28,6 +28,8 @@
         <BandTime v-bind="bandTime" @sync="syncBandTime" />
         <BandDisplay :loading="bandDisplayLoading" :band-display="currentBand?.display" @save="saveDisplayItems" />
         <LiftWrist :loading="liftWristLoading" :lift-wrist="currentBand?.liftWrist" @save="saveLiftWrist" />
+        <NightMode :loading="nightModeLoading" :night-mode="currentBand?.nightMode" @save="saveNightMode" />
+        <OtherSettings :loading="otherSettingsLoading" :distance-unit="currentBand?.distanceUnit" :band-location="currentBand?.bandLocation" @save="saveOtherSettings" />
       </div>
     </section>
     <section class="flex h-full w-full items-center justify-center" v-else>
@@ -55,7 +57,7 @@
   import { initDismisses } from "flowbite";
   import { defineAsyncComponent, onMounted, ref, toRaw } from "vue";
   import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock, setBandDisplay, scheduleLiftWrist, setLiftWristResponseSpeed } from "../band-connection";
+  import { BluetoothDeviceWrapper, authKeyStringToKey, authenticate, getActivityData, getBatteryLevel, getCurrentStatus, getCurrentTime, getDeviceInfo, setActivityGoal, setAlarm, setCurrentTime, setGoalNotifications, setIdleAlerts, setWeather, sendAlert, webBluetoothSupported, setBandLock, setBandDisplay, scheduleLiftWrist, setLiftWristResponseSpeed, setNightMode, setDistanceUnit, setBandLocation } from "../band-connection";
   import ReauthorizeModal from "../components/ReauthorizeModal.vue";
   import ActivityData from "../components/band-detail/ActivityData.vue";
   import ActivityGoal from "../components/band-detail/ActivityGoal.vue";
@@ -77,6 +79,8 @@
   import BandLock from "../components/band-detail/BandLock.vue";
   import LiftWrist from "../components/band-detail/LiftWrist.vue";
   import BandLoadingStepper from "../components/BandLoadingStepper.vue";
+  import NightMode from "../components/band-detail/NightMode.vue";
+  import OtherSettings from "../components/band-detail/OtherSettings.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
@@ -118,6 +122,8 @@
   const bandDisplayLoading = ref(false);
   const bandLockLoading = ref(false);
   const liftWristLoading = ref(false);
+  const nightModeLoading = ref(false);
+  const otherSettingsLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
   const currentLoadingState = ref<BandLoadingStates>("reauthorizing");
   const route = useRoute();
@@ -161,7 +167,7 @@
     if (success && newDevice) {
       await bandsStore.removeAuthorizedDevice(currentBand.value.deviceId);
       bandsStore.addAuthorizedDevice(newDevice);
-      await bandsStore.updateBandForId(currentBand.value.id, { deviceId: newDevice.id });
+      await updateCurrentBand({ deviceId: newDevice.id });
       currentDevice.value = new BluetoothDeviceWrapper(newDevice);
       await showDetails();
     }
@@ -170,6 +176,23 @@
   async function onIncorrectAuthModalClose() {
     currentModal.value = null;
     await router.push({ name: 'bands' });
+  }
+
+  async function refreshBand() {
+    const bandId = route.params.id;
+    if (!bandId || typeof bandId !== "string") return bandNotFound();
+    const parsedId = parseInt(bandId);
+    if (isNaN(parsedId)) return bandNotFound();
+    const band = await getBand(parsedId);
+    if (!band) return bandNotFound();
+    currentBand.value = band;
+    document.title = `${band.nickname} - Mi Band 4 Web`;
+  }
+
+  async function updateCurrentBand(fields: Partial<Band>) {
+    if (!currentBand.value) return;
+    await bandsStore.updateBandForId(currentBand.value.id, fields);
+    await refreshBand();
   }
 
   function showToast() {
@@ -183,6 +206,7 @@
     }, 3000);
   }
 
+  //#region Action Functions (called when the user clicks a button on one of the band detail items)
   async function syncActivityData() {
     await refreshBand();
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
@@ -204,7 +228,7 @@
         },
         async onBatchFinished(items) {
           const latestActivityTimestamp = items[items.length - 1].timestamp;
-          await bandsStore.updateBandForId(band.id, { latestActivityTimestamp });
+          await updateCurrentBand({ latestActivityTimestamp });
           await addActivityData(band.id, items);
           if (currentBand.value) currentBand.value.latestActivityTimestamp = latestActivityTimestamp;
         }
@@ -212,13 +236,12 @@
       activityDataLoadingStatus.value = undefined;
     }
   }
-
   async function saveActivityGoal(steps: number, goalNotifications: boolean) {
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     activityGoalLoading.value = true;
     await setActivityGoal(currentDevice.value, steps);
     await setGoalNotifications(currentDevice.value, goalNotifications);
-    await bandsStore.updateBandForId(currentBand.value.id, { activityGoal: steps, goalNotifications });
+    await updateCurrentBand({ activityGoal: steps, goalNotifications });
     activityGoalLoading.value = false;
     showToast();
   }
@@ -227,7 +250,7 @@
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     idleAlertsLoading.value = true;
     await setIdleAlerts(currentDevice.value, enabled, startTime, endTime);
-    await bandsStore.updateBandForId(currentBand.value.id, { idleAlerts: { enabled, startTime: toRaw(startTime), endTime: toRaw(endTime) } });
+    await updateCurrentBand({ idleAlerts: { enabled, startTime: toRaw(startTime), endTime: toRaw(endTime) } });
     idleAlertsLoading.value = false;
     showToast();
   }
@@ -253,7 +276,7 @@
         [...currentAlarms, alarm] // otherwise add it
       ) : currentAlarms.filter(({ id }) => id !== alarm.id); // if this alarm is being deleted, remove it
     currentBand.value.alarms = newAlarms;
-    await bandsStore.updateBandForId(currentBand.value.id, { alarms: newAlarms });
+    await updateCurrentBand({ alarms: newAlarms });
     alarmsLoading.value = false;
     showToast();
   }
@@ -276,7 +299,7 @@
     bandDisplayLoading.value = true;
     const itemsSet = new Set(displayItems.filter(item => item.enabled).map(item => item.item));
     await setBandDisplay(currentDevice.value, itemsSet);
-    await bandsStore.updateBandForId(currentBand.value.id, { display: toRaw(displayItems) });
+    await updateCurrentBand({ display: toRaw(displayItems) });
     bandDisplayLoading.value = false;
     showToast();
   }
@@ -284,7 +307,7 @@
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
     bandLockLoading.value = true;
     await setBandLock(currentDevice.value, bandLock.enabled, bandLock.pin);
-    await bandsStore.updateBandForId(currentBand.value.id, { bandLock: toRaw(bandLock) });
+    await updateCurrentBand({ bandLock: toRaw(bandLock) });
     bandLockLoading.value = false;
     showToast();
   }
@@ -293,21 +316,28 @@
     liftWristLoading.value = true;
     await scheduleLiftWrist(currentDevice.value, liftWrist.enabled, liftWrist.startTime, liftWrist.endTime);
     await setLiftWristResponseSpeed(currentDevice.value, liftWrist.responseSpeed);
-    await bandsStore.updateBandForId(currentBand.value.id, { liftWrist: toRaw(liftWrist) });
+    await updateCurrentBand({ liftWrist: toRaw(liftWrist) });
     liftWristLoading.value = false;
     showToast();
   }
-
-  async function refreshBand() {
-    const bandId = route.params.id;
-    if (!bandId || typeof bandId !== "string") return bandNotFound();
-    const parsedId = parseInt(bandId);
-    if (isNaN(parsedId)) return bandNotFound();
-    const band = await getBand(parsedId);
-    if (!band) return bandNotFound();
-    currentBand.value = band;
-    document.title = `${band.nickname} - Mi Band 4 Web`;
+  async function saveNightMode(nightMode: Exclude<Band["nightMode"], undefined>) {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    nightModeLoading.value = true;
+    await setNightMode(currentDevice.value, nightMode.state, nightMode.startTime, nightMode.endTime);
+    await updateCurrentBand({ nightMode: toRaw(nightMode) });
+    nightModeLoading.value = false;
+    showToast();
   }
+  async function saveOtherSettings(distanceUnit: "miles" | "km", bandLocation: "left" | "right") {
+    if (!currentBand.value || !currentDevice.value || !authenticated.value) return;
+    otherSettingsLoading.value = true;
+    await setDistanceUnit(currentDevice.value, distanceUnit);
+    await setBandLocation(currentDevice.value, bandLocation);
+    await updateCurrentBand({ distanceUnit, bandLocation });
+    otherSettingsLoading.value = false;
+    showToast();
+  }
+  //#endregion
 
   onMounted(async () => {
     await refreshBand();

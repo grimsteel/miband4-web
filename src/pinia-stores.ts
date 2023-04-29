@@ -9,12 +9,10 @@ declare module "pinia" {
 }
 
 const bandDateMs = ({ dateAdded }: Band) => Number(dateAdded);
-const defaultDistanceUnit = "miles";
 
 export const useConfigStore = defineStore("config", {
   state: () => ({
-    showBetaBanner: false,
-    distanceUnit: defaultDistanceUnit
+    showBetaBanner: false
   }),
   actions: {
     stopShowingBetaBanner() {
@@ -79,7 +77,6 @@ export async function indexedDbPlugin({ store }: PiniaPluginContext) {
     await tx.done;
     const config = rawConfig.reduce((acc, { key, value }) => ({ ...acc, [key.toString()]: value }), {}) as Partial<Config>;
     store.showBetaBanner = config.showBetaBanner ?? true;
-    store.distanceUnit = config.distanceUnit || defaultDistanceUnit;
     store.$subscribe(async () => {
       const tx = db.transaction("config", "readwrite");
       const configStore = tx.objectStore("config");

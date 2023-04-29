@@ -35,7 +35,7 @@ This project is based off of [Satkar Dhakal's miband4](https://github.com/satcar
 | Weather | ✅ | Set manually or from the internet |
 | Band Display | ✅ | Write-only |
 | Find My Band | ✅ | Makes the band vibrate |
-| General Configuration<sup>2</sup> | 🕑 | Write-only |
+| General Configuration<sup>2</sup> | ✅ | Write-only |
 
 <sup>1</sup> Websites can't access what music you're playing, so you can only set what the band's music screen displays manually and see when the buttons are tapped.
 
