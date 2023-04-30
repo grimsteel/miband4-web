@@ -157,3 +157,11 @@ export interface Config {
 };
 
 export type BandLoadingStates = "reauthorizing" | "searching" | "connecting" | "getting-service" | "authenticating" | "ready";
+
+export interface GeocodedCity {
+  name: string;
+  latitude: number;
+  longitude: number;
+  country: string;
+  admin1: string;
+}
