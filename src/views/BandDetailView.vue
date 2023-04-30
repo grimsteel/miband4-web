@@ -6,7 +6,7 @@
       <hr class="h-px my-4 bg-gray-200 border-0 dark:bg-gray-700" />
       <div class="space-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-12 md:space-y-0 mb-3">
         <Status v-bind="status" :distance-unit="currentBand?.distanceUnit" />
-        <ActivityData :latest-activity-timestamp="currentBand?.latestActivityTimestamp" :loading="activityDataLoadingStatus" @fetch-data="syncActivityData" />
+        <ActivityData :latest-activity-timestamp="currentBand?.latestActivityTimestamp" :loading="activityDataLoadingStatus" @fetch-data="syncActivityData" @view-data="currentModal = 'activity-data'" />
         <HeartRate />
         <ActivityGoal :loading="activityGoalLoading" :activity-goal="currentBand?.activityGoal" :goal-notifications="currentBand?.goalNotifications" @save="saveActivityGoal" />
         <IdleAlerts :loading="idleAlertsLoading" :idle-alerts="currentBand?.idleAlerts" @save="saveIdleAlerts" />
@@ -33,11 +33,12 @@
       </div>
     </section>
     <section class="flex h-full w-full items-center justify-center" v-else>
-      <BandLoadingStepper :current-state="currentLoadingState" />
+      <BandLoadingStepper :current-state="currentLoadingState" :error="currentLoadingError" />
     </section>
     <TheNotSupportedModal @before-close="currentModal = null" v-if="currentModal === 'not-supported'" />
     <ReauthorizeModal @before-close="onReauthorizeComplete" v-if="currentModal === 'reauthorize'" :target-device="currentBand" />
     <IncorrectAuthKeyModal @before-close="onIncorrectAuthModalClose" v-if="currentModal === 'incorrect-auth-key'" />
+    <ActivityDataModal @before-close="onActivityDataModalClose" @date-filter="updateDisplayedActivityData"  v-if="currentModal === 'activity-data'" v-bind="activityDataModalData" />
     <div ref="saveToastRoot" id="save-toast" class="fixed right-4 bottom-2 hidden items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
       <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg dark:bg-green-800 dark:text-green-200">
         <IconCheck class="w-5 h-5" />
@@ -69,7 +70,7 @@
   import Status from "../components/band-detail/Status.vue";
   import IconCheck from "../components/icons/IconCheck.vue";
   import IconClose from "../components/icons/IconClose.vue";
-  import { addActivityData, getBand } from "../local-db";
+  import { addActivityData, getBand, queryActivityData } from "../local-db";
   import { useBandsStore } from "../pinia-stores";
   import type { Alarm, Band, IdleAlertsConfig, WeatherData, BandLoadingStates } from "../types";
   import Alarms from "../components/band-detail/Alarms.vue";
@@ -81,11 +82,12 @@
   import BandLoadingStepper from "../components/BandLoadingStepper.vue";
   import NightMode from "../components/band-detail/NightMode.vue";
   import OtherSettings from "../components/band-detail/OtherSettings.vue";
+  import ActivityDataModal from "../components/ActivityDataModal.vue";
 
   const bandsStore = useBandsStore();
   const oneDay = 1000 * 60 * 60 * 24;
   
-  const currentModal = ref<"not-supported" | "reauthorize" | "incorrect-auth-key" | null>(null);
+  const currentModal = ref<"not-supported" | "reauthorize" | "incorrect-auth-key" | "activity-data" | null>(null);
   const currentBand = ref<Band>();
   const currentDevice = ref<BluetoothDeviceWrapper>();
   const saveToastRoot = ref<HTMLElement>();
@@ -125,7 +127,18 @@
   const nightModeLoading = ref(false);
   const otherSettingsLoading = ref(false);
   const activityDataLoadingStatus = ref<number>();
+  const activityDataModalData = ref<{
+    startDate?: Date;
+    endDate?: Date;
+    aggregatedByDay?: boolean;
+    activityData: {
+      timestamp: Date;
+      totalSteps: number;
+      averageHeartRate: number;
+    }[]
+  }>({ activityData: [] });
   const currentLoadingState = ref<BandLoadingStates>("reauthorizing");
+  const currentLoadingError = ref<string>();
   const route = useRoute();
   const router = useRouter();
   const bandNotFound = () => {
@@ -151,6 +164,17 @@
       currentLoadingState.value = "ready";
     } catch (err: any) {
       if (err === "Incorrect auth key") currentModal.value = "incorrect-auth-key";
+      else if (err.message?.toLowerCase().includes("connection attempt failed")) {
+        // In this case, the only thing we can do is forget the device and make the user reauthorize
+        // I can't find any documentation on this error (only the chromium source code) but it randomly happens
+        await bandsStore.removeAuthorizedDevice(currentBand.value.deviceId);
+        currentModal.value = "reauthorize";
+        currentLoadingState.value = "reauthorizing";
+        currentDevice.value = undefined;
+      } else if (err === "Connection timeout" || err.message?.toLowerCase().includes("failed for unknown reason")) {
+        // this happens when the browser thinks the device is connected but it's not
+        currentLoadingError.value = "We can't connect to the band. Try turning Bluetooth off and on again.";
+      }
       throw err;
     }
     deviceInfo.value = await getDeviceInfo(currentDevice.value);
@@ -176,6 +200,11 @@
   async function onIncorrectAuthModalClose() {
     currentModal.value = null;
     await router.push({ name: 'bands' });
+  }
+
+  function onActivityDataModalClose() {
+    currentModal.value = null;
+    activityDataModalData.value = { activityData: [] };
   }
 
   async function refreshBand() {
@@ -235,6 +264,13 @@
       });
       activityDataLoadingStatus.value = undefined;
     }
+  }
+  async function updateDisplayedActivityData(startDate: Date, endDate: Date) {
+    if (!currentBand.value) return;
+    // if we are querying for more than 3 days, we should aggregate the data by day
+    const shouldAggregateByDay = (endDate.getTime() - startDate.getTime()) / oneDay > 5;
+    const activityData = await queryActivityData(currentBand.value.id, startDate, endDate, shouldAggregateByDay);
+    activityDataModalData.value = { activityData, startDate, endDate, aggregatedByDay: shouldAggregateByDay };
   }
   async function saveActivityGoal(steps: number, goalNotifications: boolean) {
     if (!currentBand.value || !currentDevice.value || !authenticated.value) return;

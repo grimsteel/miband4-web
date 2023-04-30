@@ -20,6 +20,7 @@
     "@vitejs/plugin-vue": "^4.0.0",
     "@vue/test-utils": "^2.3.2",
     "autoprefixer": "^10.4.14",
+    "chart.js": "^4.3.0",
     "happy-dom": "^9.8.4",
     "idb": "^7.1.1",
     "pinia": "^2.0.34",
@@ -27,7 +28,9 @@
     "tailwindcss": "^3.3.2",
     "vite": "^4.1.4",
     "vite-plugin-pwa": "^0.14.7",
-    "vitest": "^0.30.1"
+    "vitest": "^0.30.1",
+    "vue-chartjs": "^5.2.0"
   },
-  "author": "grimsteel"
+  "author": "grimsteel",
+  "license": "GPL-3.0-only"
 }

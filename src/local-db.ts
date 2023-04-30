@@ -133,14 +133,26 @@ export async function addActivityData(bandId: number, data: StoredActivityItem[]
   db.close();
 }
 
-export async function getActivityData(bandId: number, startDate: Date, endDate: Date) {
+export async function queryActivityData(bandId: number, startDate: Date, endDate: Date, shouldAggregateByDay = false) {
   const db = await getDb();
   const tx = db.transaction("activityData", "readonly");
   const activityStore = tx.objectStore("activityData");
   let cursor = await activityStore.index("bandId-timestamp").openCursor(IDBKeyRange.bound([bandId, startDate], [bandId, endDate]));
   const data: StoredActivityItem[] = [];
   while (cursor) {
-    data.push(...cursor.value.items);
+    if (!shouldAggregateByDay)
+      data.push(...cursor.value.items);
+    else {
+      const dayStart = new Date(cursor.value.timestamp.getFullYear(), cursor.value.timestamp.getMonth(), cursor.value.timestamp.getDate());
+      const totalSteps = cursor.value.items.reduce((acc, item) => acc + item.totalSteps, 0);
+      const itemsWithHeartRate = cursor.value.items.filter(item => item.averageHeartRate);
+      const averageHeartRate = itemsWithHeartRate.reduce((acc, item) => acc + item.averageHeartRate!, 0) / itemsWithHeartRate.length;
+      data.push({
+        timestamp: dayStart,
+        totalSteps,
+        averageHeartRate
+      });
+    }
     cursor = await cursor.continue();
   }
   await tx.done;

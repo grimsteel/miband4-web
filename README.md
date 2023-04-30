@@ -24,7 +24,7 @@ This project is based off of [Satkar Dhakal's miband4](https://github.com/satcar
 | Status | ✅ | Steps, calories, distance |
 | Battery | ✅ | Battery level, last charged, etc. |
 | Heart Rate | ❌ | Low priority (accessible using the band) |
-| Activity Data | 🕑 | Steps and heart rate history. Kind of buggy. |
+| Activity Data | ✅ | Steps and heart rate history. Kind of buggy. |
 | Workout Data | ❌ | Planned |
 | Alarms | ✅ | Write-only |
 | Idle Alerts | ✅ | Write-only |
@@ -40,8 +40,6 @@ This project is based off of [Satkar Dhakal's miband4](https://github.com/satcar
 <sup>1</sup> Websites can't access what music you're playing, so you can only set what the band's music screen displays manually and see when the buttons are tapped.
 
 <sup>2</sup> This includes band location, lift wrist to wake, night mode, and band lock.
-
-<!-- TODO: Band language and distance unit  -->
 
 ## Reauthorization of Bluetooth Devices
 

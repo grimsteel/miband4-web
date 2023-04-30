@@ -43,7 +43,7 @@ html, body, #app {
 }
 
 @media (prefers-color-scheme: dark) {
-  input[type="time"] {
+  input[type="time"], input[type="date"] {
     color-scheme: dark;
   }
 }

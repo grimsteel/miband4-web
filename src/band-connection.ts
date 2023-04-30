@@ -66,7 +66,7 @@ export class BluetoothDeviceWrapper {
         listeners?.onSearching?.();
         // After 50 MS, if we're still connecting, that means it probably worked and we can move from "searching" to "connecting"
         if (listeners?.onConnecting) timeout = setTimeout(() => listeners?.onConnecting?.(), 50);
-        await this.device.gatt.connect();
+        await Promise.race([this.device.gatt.connect(), new Promise((_, reject) => setTimeout(reject, 10000, "Connection timeout"))]);
         this.invalidateCache();
       } catch (e) {
         clearTimeout(timeout); // it didn't work so cancel the timeout
@@ -353,7 +353,8 @@ function parseActivityData(activityData: ActivityItem[]): StoredActivityItem[] {
 
   const parsedData = Object.entries(groupedByHour).map(([key, items]) => {
     const totalSteps = items.reduce((acc, item) => acc + item.steps, 0);
-    const averageHeartRate = items.reduce((acc, item) => acc + item.heartRate, 0) / items.length;
+    const itemsWithHeartRate = items.filter(item => item.heartRate !== 255);
+    const averageHeartRate =  itemsWithHeartRate.reduce((acc, item) => acc + item.heartRate, 0) / itemsWithHeartRate.length;
     return {
       totalSteps,
       averageHeartRate,
