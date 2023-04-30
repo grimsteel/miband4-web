@@ -23,7 +23,7 @@
   <main>
     <section class="bg-white dark:bg-gray-900 relative">
         <div class="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16 z-10 relative">
-            <h1 class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl lg:text-6xl dark:text-white">Your Mi Smart Band 4 &#8211; Offline</h1>
+            <h1 class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl dark:text-white">Mi Band 4 Web</h1>
             <p class="mb-8 text-lg font-normal text-gray-500 lg:text-xl sm:px-16 lg:px-48 dark:text-gray-200">A lightweight web interface for the Mi Smart Band 4 that can run entirely offline. Use in any browser that supports the Web Bluetooth API</p>
             <div class="flex flex-col space-y-4 sm:flex-row sm:justify-center sm:space-y-0 sm:space-x-4">
               <router-link to="/bands/add" class="inline-flex justify-center items-center py-3 px-5 text-base font-medium text-center rounded-lg bg-gradient-to-br text-white from-orange-500 via-red-600 to-rose-700 hover:bg-gradient-to-tl focus:ring-4 focus:outline-none focus:ring-rose-300 dark:focus:ring-rose-800 shadow-lg shadow-rose-500/50 dark:shadow-lg dark:shadow-rose-800/80 bg-rose-700 hover:bg-rose-800">
