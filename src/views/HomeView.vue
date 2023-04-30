@@ -50,11 +50,7 @@
           <HomepageFeature title="Cross-Browser" description="Works in any browser that supports the Web Bluetooth API" :icon="IconComputer" />
           <HomepageFeature title="Steps" description="Track your daily steps and view statistics from the past" :icon="IconHiking" />
           <HomepageFeature title="Stats" description="Detailed battery stats, hardware info, and more" :icon="IconChart" />
-          <HomepageFeature title="Alarms" description="Create, update, and delete your band's alarms" :icon="IconBell">
-            <template v-slot:tag>
-              <FeatureTag classes="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-400" text="Experimental" :icon="IconWarning" />
-            </template>
-          </HomepageFeature>
+          <HomepageFeature title="Alarms" description="Create, update, and delete your band's alarms" :icon="IconBell" />
           <HomepageFeature title="Heart Rate" description="View and stream your heart rate" :icon="IconHeart">
             <template v-slot:tag>
               <FeatureTag classes="bg-blue-100 text-blue-800 dark:bg-gray-700 dark:text-blue-400" text="Coming soon!" :icon="IconClock" />
